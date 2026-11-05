@@ -1,33 +1,53 @@
 class MyuctoProjectsController < ApplicationController
+  helper :projects
+  menu_item :settings, only: :update
   before_action :find_myucto_project, except: [:test_connection, :suppliers]
   before_action :authorize, except: [:test_connection, :suppliers]
-  before_action :require_admin, only: [:attach_invoice, :resume_event, :test_connection, :suppliers]
+  before_action :require_admin, only: [:attach_invoice, :resume_event, :test_connection, :suppliers, :queue_existing]
 
   def show
     load_status
-    load_clients if User.current.allowed_to?(:manage_myucto, @project)
   end
 
   def update
-    @setting = MyuctoProjectSetting.find_or_initialize_by(project_id: @project.id)
-    permitted = params.require(:myucto_project_setting).permit(:enabled, :client_id)
+    @myucto_setting = MyuctoProjectSetting.find_or_initialize_by(project_id: @project.id)
+    permitted = params.require(:myucto_project_setting).permit(:enabled, :client_id, allowed_user_ids: [])
+    previous_users = @myucto_setting.allowed_user_ids
+    @myucto_setting.assign_attributes(permitted)
+    allowed = @project.users.pluck(:id) | previous_users
+    unless (@myucto_setting.allowed_user_ids - allowed).empty?
+      @myucto_setting.errors.add(:allowed_user_ids, l(:error_myucto_invalid_users))
+      load_clients
+      return render :edit, status: :unprocessable_entity
+    end
     candidate = permitted[:client_id].presence
     if candidate
       load_clients
       unless @clients.any? { |client| client_value(client, 'id').to_s == candidate.to_s }
-        @setting.errors.add(:client_id, l(:error_myucto_client_unavailable))
-        load_status
-        return render :show, status: :unprocessable_entity
+        @myucto_setting.errors.add(:client_id, l(:error_myucto_client_unavailable))
+        return render :edit, status: :unprocessable_entity
       end
     end
-    if @setting.update(permitted)
+    if @myucto_setting.save
       flash[:notice] = l(:notice_successful_update)
-      redirect_to project_myucto_path(@project)
+      redirect_to settings_project_path(@project, tab: 'myucto')
     else
-      load_status
       load_clients
-      render :show, status: :unprocessable_entity
+      render :edit, status: :unprocessable_entity
     end
+  end
+
+  def queue_existing
+    time_entry = @project.time_entries.find(params.require(:time_entry_id))
+    if time_entry.myucto_queue_existing!
+      flash[:notice] = l(:notice_myucto_existing_queued, id: time_entry.id)
+    else
+      flash[:notice] = l(:notice_myucto_existing_tracked, id: time_entry.id)
+    end
+    redirect_to project_myucto_path(@project)
+  rescue Myucto::Error => e
+    flash[:error] = e.message
+    redirect_to project_myucto_path(@project)
   end
 
   def retry_events
@@ -134,7 +154,7 @@ class MyuctoProjectsController < ApplicationController
   end
 
   def load_status
-    @setting ||= MyuctoProjectSetting.find_or_initialize_by(project_id: @project.id)
+    @myucto_setting ||= MyuctoProjectSetting.find_or_initialize_by(project_id: @project.id)
     @bindings = MyuctoInvoiceBinding.where(project_id: @project.id).order(period: :desc)
     @events = project_events.order(id: :desc).limit(100)
     @retry_safe = @bindings.all?(&:automatic_retry_safe?)
@@ -151,7 +171,7 @@ class MyuctoProjectsController < ApplicationController
     @clients = client.clients
   rescue StandardError
     @clients = []
-    flash.now[:error] = l(:error_myucto_api_unavailable)
+    @myucto_clients_error = l(:error_myucto_api_unavailable)
   end
 
   def client_value(client, key)

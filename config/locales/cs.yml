@@ -6,7 +6,7 @@ cs:
   label_myucto_api_url: URL API
   label_myucto_supplier_id: ID firmy dodavatele
   label_myucto_enabled: Zapnout synchronizaci
-  label_myucto_client: Odběratel
+  label_myucto_client: Klient faktury (odběratel)
   label_myucto_invoices: Měsíční faktury
   label_myucto_invoice_id: ID faktury
   label_myucto_period: Měsíc
@@ -67,3 +67,13 @@ cs:
   text_myucto_no_suppliers: Token nemá dostupnou žádnou firmu.
   text_myucto_supplier_unavailable: Uložená firma není dostupná pro tento token. Vyberte firmu z nabídky.
   text_myucto_search_supplier: Začněte psát název firmy nebo ID…
+  label_myucto_project_settings: Nastavení MyÚčta
+  label_myucto_allowed_users: 'Přenášet časy těchto uživatelů'
+  text_myucto_allowed_users: 'Prázdný seznam nepřenáší žádné nové časy. Rozhoduje uživatel, na kterého je čas vykázaný. Již propojené záznamy se dále synchronizují i po odebrání uživatele.'
+  error_myucto_invalid_users: 'vyberte členy tohoto projektu'
+  error_myucto_user_not_allowed: 'Synchronizace projektu není zapnutá nebo uživatel vykázaného času není povolený pro přenos.'
+  label_myucto_queue_existing: 'Přenos existujícího časového záznamu'
+  button_myucto_queue_existing: 'Zařadit k synchronizaci'
+  text_myucto_queue_existing: 'Pouze administrátor: zadejte ID časového záznamu z tohoto projektu. Zůstane zachované datum, uživatel i historie; přenos respektuje seznam povolených uživatelů. Již zařazený záznam se nepřidá znovu.'
+  notice_myucto_existing_queued: 'Časový záznam %{id} byl zařazen do fronty synchronizace.'
+  notice_myucto_existing_tracked: 'Časový záznam %{id} již je propojený nebo ve frontě. Jeho stav najdete v přehledu synchronizace.'

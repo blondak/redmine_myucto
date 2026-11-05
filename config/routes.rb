@@ -6,3 +6,5 @@ post 'projects/:project_id/myucto/events/:id/resume', to: 'myucto_projects#resum
 post 'myucto/test_connection', to: 'myucto_projects#test_connection', as: :test_myucto_connection
 
 post 'myucto/suppliers', to: 'myucto_projects#suppliers', as: :myucto_suppliers
+
+post 'projects/:project_id/myucto/queue_existing', to: 'myucto_projects#queue_existing', as: :queue_existing_project_myucto

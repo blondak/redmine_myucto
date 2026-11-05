@@ -1,18 +1,19 @@
 <h2><%= l(:label_myucto) %></h2>
 
 <% if User.current.allowed_to?(:manage_myucto, @project) %>
-  <%= error_messages_for 'setting' %>
-  <%= labelled_form_for @setting, url: project_myucto_path(@project), method: :patch do |f| %>
-    <div class="box tabular">
-      <p><%= f.check_box :enabled, label: :label_myucto_enabled %></p>
-      <p><%= f.select :client_id, (@clients || []).map { |client| [client_value(client, 'company_name').presence || client_value(client, 'name').presence || client_value(client, 'id'), client_value(client, 'id')] }, { include_blank: true, label: :label_myucto_client } %></p>
-      <% if @setting.client_id.present? %>
-        <p class="info"><%= l(:text_myucto_current_client, id: @setting.client_id) %></p>
-      <% end %>
-      <p class="info"><%= l(:text_myucto_one_invoice) %></p>
-    </div>
-    <%= submit_tag l(:button_save) %>
-  <% end %>
+  <p><%= link_to l(:label_myucto_project_settings), settings_project_path(@project, tab: 'myucto'), class: 'icon icon-settings' %></p>
+<% end %>
+
+<% if User.current.admin? %>
+  <fieldset class="box">
+    <legend><%= l(:label_myucto_queue_existing) %></legend>
+    <%= form_tag queue_existing_project_myucto_path(@project), method: :post do %>
+      <p><%= label_tag :time_entry_id, l(:label_myucto_time_entry) %>
+        <%= number_field_tag :time_entry_id, nil, min: 1, required: true %>
+        <%= submit_tag l(:button_myucto_queue_existing) %></p>
+      <p class="info"><%= l(:text_myucto_queue_existing) %></p>
+    <% end %>
+  </fieldset>
 <% end %>
 
 <h3><%= l(:label_myucto_invoices) %></h3>

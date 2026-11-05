@@ -11,6 +11,23 @@ module Myucto
       base.after_destroy :myucto_enqueue_deletion
     end
 
+    # Explicit administrator import uses the same transactional outbox as new
+    # entries. Row locking makes repeated/concurrent imports idempotent.
+    def myucto_queue_existing!
+      with_lock do
+        return false if myucto_tracked?
+        setting = MyuctoProjectSetting.find_by(project_id: project_id)
+        unless setting&.transfer_user?(user_id)
+          raise Myucto::Conflict, I18n.t(:error_myucto_user_not_allowed)
+        end
+        if hours.to_f.round(2) <= 0
+          raise Myucto::Conflict, I18n.t(:myucto_positive_hours)
+        end
+        myucto_enqueue(false)
+        true
+      end
+    end
+
     private
 
     def myucto_tracked?
@@ -18,7 +35,7 @@ module Myucto
     end
 
     def myucto_positive_hours
-      enabled = new_record? ? MyuctoProjectSetting.exists?(project_id: project_id, enabled: true) : myucto_tracked?
+      enabled = new_record? ? MyuctoProjectSetting.find_by(project_id: project_id)&.transfer_user?(user_id) : myucto_tracked?
       if enabled && hours && hours.to_f.round(2) <= 0
         errors.add(:hours, I18n.t(:myucto_positive_hours))
       end
@@ -61,7 +78,7 @@ module Myucto
 
     def myucto_enqueue_creation
       setting = MyuctoProjectSetting.find_by(project_id: project_id, enabled: true)
-      myucto_enqueue(false) if setting
+      myucto_enqueue(false) if setting&.transfer_user?(user_id)
     end
 
     def myucto_enqueue_update
@@ -78,7 +95,7 @@ module Myucto
       parts << comments.to_s.strip unless comments.to_s.strip.empty?
       parts << activity.name.to_s if parts.empty? && activity
       payload = {
-        'project_id' => project_id, 'project_name' => project.name,
+        'project_id' => project_id, 'project_name' => project.name, 'user_id' => user_id,
         'spent_on' => spent_on.iso8601, 'hours' => hours.to_f,
         'description' => "#{parts.join(' — ')} [TE##{id}]", 'deleted' => deleted,
         'client_id' => MyuctoProjectSetting.find_by(project_id: project_id)&.client_id,

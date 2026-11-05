@@ -6,7 +6,7 @@ en:
   label_myucto_api_url: API URL
   label_myucto_supplier_id: Supplier company ID
   label_myucto_enabled: Enable synchronization
-  label_myucto_client: Customer
+  label_myucto_client: Invoice client (customer)
   label_myucto_invoices: Monthly invoices
   label_myucto_invoice_id: Invoice ID
   label_myucto_period: Month
@@ -67,3 +67,13 @@ en:
   text_myucto_no_suppliers: No companies are available for this token.
   text_myucto_supplier_unavailable: The saved company is not available for this token. Select a company from the list.
   text_myucto_search_supplier: Start typing a company name or ID…
+  label_myucto_project_settings: MyÚčto settings
+  label_myucto_allowed_users: 'Transfer time for these users'
+  text_myucto_allowed_users: 'An empty list transfers no new time entries. The time owner determines eligibility. Previously linked entries continue syncing after a user is removed.'
+  error_myucto_invalid_users: 'select members of this project'
+  error_myucto_user_not_allowed: 'Project synchronization is disabled or the time owner is not allowed for transfer.'
+  label_myucto_queue_existing: 'Transfer an existing time entry'
+  button_myucto_queue_existing: 'Queue for synchronization'
+  text_myucto_queue_existing: 'Administrator only: enter a time entry ID from this project. Date, owner and history remain intact; the allowed-users list applies. Already tracked entries are not queued again.'
+  notice_myucto_existing_queued: 'Time entry %{id} was queued for synchronization.'
+  notice_myucto_existing_tracked: 'Time entry %{id} is already linked or queued. Check its status in the synchronization overview.'

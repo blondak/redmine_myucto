@@ -12,7 +12,13 @@ ActiveRecord::Base.belongs_to_required_by_default = true
 ActiveRecord::Migration.verbose = false
 ActiveRecord::Schema.define do
   create_table(:projects) { |table| table.string :name }
-  create_table(:time_entries) { |table| table.integer :project_id }
+  create_table(:time_entries) do |table|
+    table.integer :project_id
+    table.integer :user_id
+    table.integer :author_id
+    table.datetime :created_on
+    table.datetime :updated_on
+  end
 end
 
 class Project < ActiveRecord::Base; end
@@ -20,6 +26,8 @@ class TimeEntry < ActiveRecord::Base; end
 
 require_relative '../../db/migrate/001_create_myucto_sync_tables'
 CreateMyuctoSyncTables.new.migrate(:up)
+require_relative '../../db/migrate/002_add_myucto_allowed_users'
+AddMyuctoAllowedUsers.new.migrate(:up)
 %w[project_setting invoice_binding time_link sync_event].each do |name|
   require_relative "../../app/models/myucto_#{name}"
 end

@@ -11,7 +11,8 @@ Redmine::Plugin.register :redmine_myucto do
 
   project_module :myucto do
     permission :view_myucto, { myucto_projects: [:show] }
-    permission :manage_myucto, { myucto_projects: [:show, :update, :retry_events, :attach_invoice, :resume_event] }
+    permission :manage_myucto, { myucto_projects: [:show, :update, :retry_events, :attach_invoice, :resume_event, :queue_existing],
+                                 projects: [:settings] }
   end
 
   menu :project_menu, :myucto, { controller: 'myucto_projects', action: 'show' },
@@ -19,6 +20,9 @@ Redmine::Plugin.register :redmine_myucto do
 end
 
 Rails.application.config.to_prepare do
+  require_dependency 'projects_helper'
+  require_dependency 'myucto/projects_helper_patch'
+  ProjectsHelper.prepend Myucto::ProjectsHelperPatch unless ProjectsHelper.ancestors.include?(Myucto::ProjectsHelperPatch)
   require_dependency 'myucto/time_entry_patch'
   TimeEntry.include Myucto::TimeEntryPatch unless TimeEntry.included_modules.include?(Myucto::TimeEntryPatch)
   require_dependency 'myucto/timelog_controller_patch'

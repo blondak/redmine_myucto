@@ -15,7 +15,7 @@ Plugin pro Redmine 6, který přenáší nové časové záznamy do měsíčníc
    ```
 
 4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance, klikněte na **Načíst firmy** a vyberte fakturující firmu podle názvu nebo ID. Pod výběrem se zobrazí její název, IČO a DIČ. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
-5. V projektu zapněte modul **MyÚčto**, rolím přidělte oprávnění pro zobrazení/správu integrace a v projektové záložce **MyÚčto** vyberte odběratele a zapněte synchronizaci.
+5. V projektu zapněte modul **MyÚčto**, rolím přidělte oprávnění pro zobrazení/správu integrace a v **Nastavení projektu → MyÚčto** vyberte klienta faktury (odběratele), povolené uživatele a zapněte synchronizaci. Projektová záložka **MyÚčto** slouží pro přehled faktur a synchronizace.
 6. Naplánujte každou minutu následující úlohu, se stejným prostředím a uživatelem jako Redmine:
 
    ```sh
@@ -27,7 +27,7 @@ Výchozí limit je 100 událostí na spuštění; změnit jej lze proměnnou `LI
 ## Chování
 
 - Jedna instance MyÚčta, jedna fakturující firma a jedna instance Redmine. Každý projekt a měsíc podle data práce `spent_on` má vlastní vazbu na koncept faktury.
-- Přenášejí se všechny **nově založené** časy po zapnutí integrace. Dřívější nepropojené časy se neimportují ani při pozdější úpravě. Vypnutí integrace zastaví přidávání nových časů; již zařazené/propojené časy se dokončí a zůstávají chráněné.
+- Přenášejí se **nově založené** časy uživatelů vybraných v nastavení konkrétního projektu. Rozhoduje `time_entry.user_id` (uživatel vykázaného času), nikoli autor záznamu. Prázdný seznam znamená, že se žádné nové časy nepřenášejí. Odebrání uživatele nezastaví aktualizace již propojených časů. Dřívější nepropojené časy se neimportují ani při pozdější úpravě. Vypnutí integrace zastaví přidávání nových časů; již zařazené/propojené časy se dokončí a zůstávají chráněné.
 - Nový koncept nemá fakturační položky. Data dokladu, měnu a splatnost doplní MyÚčto podle svých výchozích hodnot. Období práce je v názvu výkazu; při vystavení si zkontrolujte skutečná data dokladu.
 - Řádek obsahuje datum práce, hodiny a popis `#číslo Název úkolu — komentář [TE#123]`. Bez úkolu se použije komentář, případně aktivita. Změna názvu úkolu sama historický výkaz nepřepisuje.
 - Hodiny se pro databázi MyÚčta zaokrouhlují na dvě desetinná místa. Zapojené časy musí mít alespoň 0,01 h; nulu plugin odmítne s vysvětlením.
@@ -69,3 +69,21 @@ Následně samostatně obnovte událost. Tento reset není běžný retry; nespr
 Postup a rozsah ověření jsou v [test/README.md](test/README.md). Testy používají syntetická data; nevystavují skutečné faktury.
 
 Před odinstalací zastavte plánovač, vypněte integraci a zálohujte databázi Redmine. Smazání tabulek pluginu zničí vazby i historii synchronizace. Případný rollback provádějte přes migrační nástroje Redmine, nikoli ručním mazáním tabulek za běhu.
+
+## Práva a viditelnost
+
+Modul musí být zapnutý v projektu. Oprávnění se přidělují v **Administrace → Role a oprávnění → MyÚčto**:
+
+- **Zobrazit synchronizaci MyÚčto** (`view_myucto`): projektová záložka, vazby na faktury a stav událostí celého projektu.
+- **Spravovat synchronizaci MyÚčto** (`manage_myucto`): navíc **Nastavení projektu → MyÚčto**, výběr klienta a opakování běžných chyb. Pro tuto záložku není potřeba přidělovat obecné právo upravovat projekt.
+- **Administrátor Redmine**: globální URL, fakturující firma, test API a ruční obnova nejasného založení faktury či konfliktů.
+
+Přístup nevzniká samotným členstvím v projektu. Pokud právo přidělíte roli Nečlen nebo Anonymní, u veřejných projektů se uplatní také tato role; pro neveřejná fakturační data jim je nepřidělujte. Přehled MyÚčta nefiltruje události podle vlastníka času — právo zobrazení je pro celý projekt. Seznam povolených uživatelů určuje pouze přenos nových časů; nepřiděluje jim oprávnění vidět modul nebo měnit nastavení.
+
+## Přechod na výběr uživatelů a přenos starších časů
+
+Po aktualizaci spusťte pluginovou migraci uvedenou v instalaci a restartujte Redmine i worker. Nový seznam uživatelů je zpočátku prázdný **i u dosavadních projektů**: v **Nastavení projektu → MyÚčto** proto vyberte členy, jejichž nové časy chcete přenášet. Již existující fronta a vazby se zachovají.
+
+Staré záznamy nemažte ani nezadávejte znovu. Administrátor na stránce **Projekt → MyÚčto → Přenos existujícího časového záznamu** zadá ID času z tohoto projektu a stiskne **Zařadit k synchronizaci**. Akce zachová původní záznam i datum práce a zařadí jej do běžné fronty pro příslušný měsíc. Respektuje zapnutí integrace a seznam povolených uživatelů; nepřenáší automaticky celou historii.
+
+Opakované zadání stejného ID už propojený/zařazený čas nepřidá podruhé. Jeho případné chyby řešte přes běžný přehled a obnovu událostí. Pokud je měsíční faktura již vystavená nebo uzamčená, worker záznam označí jako konflikt a fakturu nezmění. Ručně založené faktury se automaticky nevyhledávají ani nepřebírají.

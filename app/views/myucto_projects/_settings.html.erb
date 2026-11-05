@@ -1,0 +1,16 @@
+<% if (data = myucto_settings_data) %>
+  <% setting, clients, api_error = data %>
+  <%= error_messages_for 'myucto_setting' %>
+  <% if api_error %><p class="warning"><%= api_error %></p><% end %>
+  <%= labelled_form_for setting, url: project_myucto_path(@project), method: :patch do |f| %>
+    <div class="box tabular">
+      <p><%= f.check_box :enabled, label: :label_myucto_enabled %></p>
+      <p><%= f.select :client_id, clients, { include_blank: true, label: :label_myucto_client }, { disabled: api_error.present? } %></p>
+      <p><%= f.select :allowed_user_ids, myucto_user_options,
+                      { label: :label_myucto_allowed_users }, { multiple: true, size: 8 } %></p>
+      <p class="info"><%= l(:text_myucto_allowed_users) %></p>
+      <p class="info"><%= l(:text_myucto_one_invoice) %></p>
+    </div>
+    <%= submit_tag l(:button_save) %>
+  <% end %>
+<% end %>
