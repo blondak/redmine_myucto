@@ -11,14 +11,15 @@ module Myucto
 
     def run(limit: 100)
       processed = 0
-      table = MyuctoSyncEvent.connection.quote_table_name(MyuctoSyncEvent.table_name)
-      eligible = MyuctoSyncEvent.ready.where("NOT EXISTS (SELECT 1 FROM #{table} prior_event WHERE prior_event.time_entry_id = #{table}.time_entry_id AND prior_event.id < #{table}.id AND prior_event.state <> 'done')")
+      eligible = MyuctoSyncEvent.ready.unblocked
       while processed < limit
         event = eligible.order(:id).first
         break unless event
         # A later change must never overtake an unfinished create/move/delete.
         next if MyuctoSyncEvent.where(time_entry_id: event.time_entry_id).where('id < ?', event.id).where.not(state: 'done').exists?
-        claimed = MyuctoSyncEvent.where(id: event.id, state: 'pending').update_all(state: 'processing', updated_at: Time.current)
+        # A competing worker may have already failed and scheduled a future
+        # retry between SELECT and UPDATE. Recheck its deadline when claiming.
+        claimed = MyuctoSyncEvent.where(id: event.id, state: 'pending').ready.update_all(state: 'processing', updated_at: Time.current)
         next unless claimed == 1
         event.reload
         begin
@@ -105,23 +106,39 @@ module Myucto
       raise Conflict, 'Target project has no enabled MyÚčto integration' unless authorized
       client_id = data['client_id'] || setting&.client_id
       raise Conflict, 'Target project has no MyÚčto customer' unless client_id
-      MyuctoInvoiceBinding.create_or_find_by!(project_id: project_id, period: period) do |binding|
-        binding.client_id = client_id
-        binding.connection_key = Myucto.connection_key
+      binding = begin
+        MyuctoInvoiceBinding.create_or_find_by!(project_id: project_id, period: period) do |candidate|
+          candidate.client_id = client_id
+          candidate.connection_key = Myucto.connection_key
+        end
+      rescue ActiveRecord::RecordInvalid => e
+        # A competing insert can be visible to the uniqueness validator before
+        # INSERT reaches the unique index. create_or_find_by! only handles the
+        # latter; never hide unrelated validation failures here.
+        details = e.record.errors.details
+        duplicate_period = details.keys == [:period] && details[:period].all? { |error| error[:error] == :taken }
+        raise unless e.record.is_a?(MyuctoInvoiceBinding) && duplicate_period &&
+                     e.record.project_id.to_s == project_id.to_s && e.record.period == period
+        existing = MyuctoInvoiceBinding.find_by(project_id: project_id, period: period)
+        raise unless existing
+        existing
       end
+      Myucto.assert_connection!(binding)
+      binding
     end
 
     def ensure_invoice!(binding, data)
       binding.reload
-      return if binding.invoice_id && binding.state == 'ready'
-      if %w[creating uncertain conflict].include?(binding.state)
-        raise Conflict, "Invoice creation needs verification for #{binding.period} (binding ##{binding.id})"
-      end
+      return unless creation_required?(binding)
       # Commit intent BEFORE any HTTP call. A crash leaves 'creating' and MUST NOT
       # cause a second POST. No surrounding database transaction is permitted here.
       claimed = MyuctoInvoiceBinding.where(id: binding.id, state: 'pending', invoice_id: nil)
                                    .update_all(state: 'creating', updated_at: Time.current)
-      raise Conflict, 'Invoice creation is already in progress' unless claimed == 1
+      unless claimed == 1
+        binding.reload
+        return unless creation_required?(binding)
+        raise Unavailable, 'Invoice creation state changed. Try again later.'
+      end
       begin
         invoice = @client.create_invoice(client_id: binding.client_id, period: binding.period,
                                          project_name: data.fetch('project_name'))
@@ -134,6 +151,17 @@ module Myucto
         binding.update!(state: 'pending', error: e.message)
         raise
       end
+    end
+
+    def creation_required?(binding)
+      return false if binding.invoice_id && binding.state == 'ready'
+      if binding.state == 'creating'
+        # Another worker may still own the POST. Retry the event within its
+        # normal attempt limit, but never reset this durable creation intent.
+        raise Unavailable, 'Invoice creation is already in progress. Try again later.'
+      end
+      return true if binding.state == 'pending' && binding.invoice_id.nil?
+      raise Conflict, "Invoice creation needs verification for #{binding.period} (binding ##{binding.id})"
     end
 
     def with_bindings_locked(bindings, &block)

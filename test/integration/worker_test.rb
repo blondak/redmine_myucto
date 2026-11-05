@@ -197,8 +197,181 @@ class WorkerIntegrationTest < Minitest::Test
     MyuctoInvoiceBinding.create!(project: @project, period: '2026-10', client_id: 7, state: 'creating')
     event = enqueue
     @worker.run
+    assert_equal 'pending', event.reload.state
+    assert_equal 1, event.attempts
+    assert_operator event.available_at, :>, Time.current
+    assert_empty @api.creates
+    7.times do
+      ready_again(event)
+      @worker.run
+    end
+    assert_equal 'failed', event.reload.state
+    assert_equal 8, event.attempts
+    assert_equal 'creating', binding.state
+    assert_empty @api.creates
+  end
+
+  def test_duplicate_poll_during_create_defers_other_entry_without_another_post
+    first = enqueue
+    second = enqueue(2)
+    other_worker = Myucto::Worker.new(client: @api)
+    nested_processed = nil
+    @api.define_singleton_method(:create_invoice) do |**attributes|
+      nested_processed = other_worker.run
+      super(**attributes)
+    end
+    assert_equal 1, @worker.run
+    assert_equal 1, nested_processed
+    assert_equal 'done', first.reload.state
+    assert_equal 'pending', second.reload.state
+    assert_equal 1, second.attempts
+    assert_equal 1, @api.creates.size
+    ready_again(second)
+    assert_equal 1, other_worker.run
+    assert_equal 'done', second.reload.state
+    assert_equal 1, @api.creates.size
+    assert_equal 2, @api.reports.fetch(binding.invoice_id)['items'].size
+  end
+
+  def test_losing_event_claim_does_not_process_an_already_claimed_event
+    event = enqueue
+    original = MyuctoSyncEvent.method(:where)
+    claim_stolen = false
+    interleaved_where = lambda do |*args|
+      if !claim_stolen && args.first == { id: event.id, state: 'pending' }
+        claim_stolen = true
+        original.call(id: event.id).update_all(state: 'processing')
+      end
+      original.call(*args)
+    end
+    MyuctoSyncEvent.stub(:where, interleaved_where) do
+      assert_equal 0, @worker.run
+    end
+    assert claim_stolen
+    assert_equal 'processing', event.reload.state
+    assert_empty @api.creates
+    assert_empty @api.writes
+    assert_equal 0, MyuctoTimeLink.count
+  end
+
+  def test_binding_validation_race_reuses_competing_binding
+    event = enqueue
+    original = MyuctoInvoiceBinding.method(:create_or_find_by!)
+    competing_id = nil
+    interleaved_create = lambda do |attributes, &block|
+      competitor = MyuctoInvoiceBinding.create!(attributes.merge(client_id: 7, connection_key: Myucto.connection_key))
+      competing_id = competitor.id
+      # The real uniqueness validator now sees the competing committed row.
+      original.call(attributes, &block)
+    end
+    MyuctoInvoiceBinding.stub(:create_or_find_by!, interleaved_create) { @worker.run }
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_equal competing_id, binding.id
+    assert_equal 1, MyuctoInvoiceBinding.count
+    assert_equal 1, @api.creates.size
+  end
+
+  def test_losing_event_claim_respects_retry_scheduled_by_another_worker
+    event = enqueue
+    original = MyuctoSyncEvent.method(:where)
+    deferred = false
+    interleaved_where = lambda do |*args|
+      if !deferred && args.first == { id: event.id, state: 'pending' }
+        deferred = true
+        original.call(id: event.id).update_all(available_at: Time.current + 600, attempts: 1)
+      end
+      original.call(*args)
+    end
+    MyuctoSyncEvent.stub(:where, interleaved_where) { assert_equal 0, @worker.run }
+    assert deferred
+    assert_equal 'pending', event.reload.state
+    assert_equal 1, event.attempts
+    assert_empty @api.creates
+  end
+
+  def test_binding_race_does_not_swallow_other_validation_errors
+    data = enqueue(1, client_id: 0).payload_data
+    original = MyuctoInvoiceBinding.method(:create_or_find_by!)
+    interleaved_create = lambda do |attributes, &block|
+      MyuctoInvoiceBinding.create!(attributes.merge(client_id: 7))
+      original.call(attributes, &block)
+    end
+    MyuctoInvoiceBinding.stub(:create_or_find_by!, interleaved_create) do
+      error = assert_raises(ActiveRecord::RecordInvalid) { @worker.send(:binding_for, data) }
+      assert_includes error.record.errors.attribute_names, :client_id
+      assert_includes error.record.errors.attribute_names, :period
+    end
+    assert_empty @api.creates
+  end
+
+  def test_binding_validation_race_checks_competitors_connection
+    event = enqueue
+    original = MyuctoInvoiceBinding.method(:create_or_find_by!)
+    interleaved_create = lambda do |attributes, &block|
+      MyuctoInvoiceBinding.create!(attributes.merge(client_id: 7, connection_key: 'different-connection'))
+      original.call(attributes, &block)
+    end
+    MyuctoInvoiceBinding.stub(:create_or_find_by!, interleaved_create) { @worker.run }
     assert_equal 'conflict', event.reload.state
     assert_empty @api.creates
+  end
+
+  def test_losing_creation_claim_reloads_successful_invoice_without_posting
+    invoice_binding = MyuctoInvoiceBinding.create!(project: @project, period: '2026-10', client_id: 7)
+    @api.invoices[777] = { 'id' => 777, 'status' => 'draft', 'items' => [] }
+    event = enqueue
+    with_competing_creation_claim(invoice_binding, state: 'ready', invoice_id: 777) { @worker.run }
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_equal 777, link.invoice_binding.invoice_id
+    assert_empty @api.creates
+    assert_equal 1, @api.reports.fetch(777)['items'].size
+  end
+
+  def test_losing_creation_claim_defers_while_other_worker_is_creating
+    invoice_binding = MyuctoInvoiceBinding.create!(project: @project, period: '2026-10', client_id: 7)
+    event = enqueue
+    with_competing_creation_claim(invoice_binding, state: 'creating') { @worker.run }
+    assert_equal 'pending', event.reload.state
+    assert_equal 1, event.attempts
+    assert_equal 'creating', invoice_binding.reload.state
+    assert_empty @api.creates
+  end
+
+  def test_losing_creation_claim_cannot_bypass_manual_recovery_states
+    %w[uncertain conflict].each_with_index do |state, index|
+      period = "2026-#{10 + index}"
+      invoice_binding = MyuctoInvoiceBinding.create!(project: @project, period: period, client_id: 7)
+      event = enqueue(index + 1, spent_on: "#{period}-01")
+      with_competing_creation_claim(invoice_binding, state: state) { @worker.run }
+      assert_equal 'conflict', event.reload.state
+      assert_equal state, invoice_binding.reload.state
+      assert_empty @api.creates
+    end
+  end
+
+  def test_inconsistent_creation_states_never_post_again
+    [{ state: 'ready', invoice_id: nil }, { state: 'pending', invoice_id: 888 }].each_with_index do |attributes, index|
+      period = "2026-#{10 + index}"
+      MyuctoInvoiceBinding.create!(attributes.merge(project: @project, period: period, client_id: 7))
+      event = enqueue(index + 1, spent_on: "#{period}-01")
+      @worker.run
+      assert_equal 'conflict', event.reload.state
+      assert_empty @api.creates
+    end
+  end
+
+  def with_competing_creation_claim(invoice_binding, **changes)
+    original = MyuctoInvoiceBinding.method(:where)
+    interleaved = false
+    interleaved_where = lambda do |*args|
+      if !interleaved && args.first == { id: invoice_binding.id, state: 'pending', invoice_id: nil }
+        interleaved = true
+        original.call(id: invoice_binding.id).update_all(changes)
+      end
+      original.call(*args)
+    end
+    MyuctoInvoiceBinding.stub(:where, interleaved_where) { yield }
+    assert interleaved, 'The competing claim must run between reload and conditional UPDATE'
   end
 
   def test_changed_connection_cannot_edit_an_existing_binding

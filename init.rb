@@ -28,3 +28,5 @@ end
 end
 TimeEntry.include Myucto::TimeEntryPatch unless TimeEntry.included_modules.include?(Myucto::TimeEntryPatch)
 TimelogController.include Myucto::TimelogControllerPatch unless TimelogController.included_modules.include?(Myucto::TimelogControllerPatch)
+
+Myucto::BackgroundBoot.install(Rails.application)

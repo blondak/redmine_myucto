@@ -7,7 +7,7 @@ Plugin pro Redmine 6, který přenáší nové časové záznamy do měsíčníc
 ## Instalace
 
 1. Vložte tento adresář do `plugins/redmine_myucto` v instalaci Redmine 6. Použijte Ruby podporované vaší verzí Redmine (Redmine 6.0: Ruby 3.1–3.3).
-2. Nastavte `MYUCTO_API_TOKEN` v prostředí webového procesu **i plánované úlohy**. Token musí mít oprávnění `read_write`, čtení odběratelů a přístup k fakturám/výkazům příslušné firmy. Token se neukládá do databáze pluginu. Restartujte webový proces po změně prostředí.
+2. Nastavte `MYUCTO_API_TOKEN` v prostředí každého webového kontejneru Redmine. Token musí mít oprávnění `read_write`, čtení odběratelů a přístup k fakturám/výkazům příslušné firmy. Token se neukládá do databáze pluginu. Po změně prostředí restartujte nebo znovu vytvořte webové kontejnery.
 3. Z kořene Redmine spusťte migraci:
 
    ```sh
@@ -16,13 +16,13 @@ Plugin pro Redmine 6, který přenáší nové časové záznamy do měsíčníc
 
 4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance, klikněte na **Načíst firmy** a vyberte fakturující firmu podle názvu nebo ID. Pod výběrem se zobrazí její název, IČO a DIČ. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
 5. V projektu zapněte modul **MyÚčto**, rolím přidělte oprávnění pro zobrazení/správu integrace a v **Nastavení projektu → MyÚčto** vyberte klienta faktury (odběratele), povolené uživatele a zapněte synchronizaci. Projektová záložka **MyÚčto** slouží pro přehled faktur a synchronizace.
-6. Naplánujte každou minutu následující úlohu, se stejným prostředím a uživatelem jako Redmine:
+6. Restartujte webové kontejnery Redmine. Při aktualizaci z verze bez automatického zpracování to stačí; nová migrace databáze není potřeba.
 
-   ```sh
-   bundle exec rake redmine:myucto:sync RAILS_ENV=production
-   ```
+Synchronizace běží uvnitř každého webového procesu přes vyhrazený ActiveJob Async adapter s jedním vláknem na PID. Nepotřebuje cron, Redis ani samostatnou službu workeru. Fronta outboxu je uložena v databázi: změna ji probudí po potvrzení transakce a na startu serveru se čekající práce načte znovu. Periodická kontrola běží každých 60 sekund i bez příchozích webových požadavků; respektuje `available_at` a hotové události znovu nezpracovává. Tento adaptér se nevztahuje na ostatní ActiveJob úlohy Redmine, například e-mail.
 
-Výchozí limit je 100 událostí na spuštění; změnit jej lze proměnnou `LIMIT`. Produkční provoz vyžaduje PostgreSQL, MySQL nebo MariaDB pro zámky řádků. SQLite slouží pro vývoj a testy s jedním workerem.
+Každý webový PID může pro synchronizaci potřebovat jedno další databázové spojení z poolu. Produkční souběžnost vyžaduje PostgreSQL, MySQL nebo MariaDB se zámky řádků. SQLite je určena pro vývoj a testy. Oficiální Docker image s `rails server` i Puma cluster spouštějí synchronizaci při startu, bez návštěvy webu. Při jiném Rack serveru je zálohou první požadavek v daném procesu; pro okamžitý start bez provozu lze z jeho hooku po dokončení bootu každého workeru zavolat `Myucto::Background.start!`. Rake úlohy a Rails runner automatickou synchronizaci nespouštějí.
+
+Volitelně lze automatické zpracování vypnout nastavením `MYUCTO_AUTO_SYNC=0` ve **všech** webových kontejnerech a jejich znovuvytvořením. To je určeno například pro ruční obnovu. Proměnnou předejte do kontejneru v `environment:` (samotný řádek v `.env` nestačí). Po skončení hodnotu odstraňte a kontejnery opět znovu vytvořte. Při vypnuté automatice lze přes UI opravit vazby a zařadit události; přenos pak spustíte ručně úlohou `bundle exec rake redmine:myucto:sync RAILS_ENV=production` nebo znovuzapnutím automatiky. Samotné vypnutí synchronizace projektu nezastaví události, které už byly zařazeny. Pro ruční rake úlohu zůstává výchozí limit 100 událostí, nastavitelný proměnnou `LIMIT`.
 
 ## Chování
 
@@ -40,35 +40,37 @@ Výchozí limit je 100 událostí na spuštění; změnit jej lze proměnnou `LI
 
 Před změnou nebo smazáním propojeného času plugin ověří, že dotčené faktury jsou neuzamčené koncepty. Pokud je faktura vystavená, uzamčená nebo API nedostupné, změnu odmítne s důvodem. Kontrola platí i pro běžné REST a hromadné operace Redmine. Přímé databázové zásahy a cizí pluginy obcházející modelové callbacky nejsou podporované.
 
-API MyÚčta ukládá celý pracovní výkaz a neposkytuje podmíněný zápis podle verze. Kontroly před/po zápisu a zámky mezi workery nemohou zaručit ochranu před souběžnou ruční úpravou v MyÚčtu. Během synchronizace stejný výkaz ručně neupravujte; zjištěné rozdíly se zobrazí jako konflikt. Stejná mezera existuje při souběžném vystavení faktury a změně času.
+API MyÚčta ukládá celý pracovní výkaz a neposkytuje podmíněný zápis podle verze. Kontroly před/po zápisu a zámky mezi webovými procesy nemohou zaručit ochranu před souběžnou ruční úpravou v MyÚčtu. Během synchronizace stejný výkaz ručně neupravujte; zjištěné rozdíly se zobrazí jako konflikt. Stejná mezera existuje při souběžném vystavení faktury a změně času.
 
 ## Fronta a obnova
 
-Projektová záložka zobrazuje vazby na faktury, odkazy a posledních 100 událostí. Přechodné chyby mají prodlužující se interval opakování, nejvýše osm pokusů. Události stejného času se nepředbíhají; chyba jednoho času neblokuje ostatní časy.
+Projektová záložka zobrazuje vazby na faktury, odkazy a posledních 100 událostí. Přechodné chyby mají prodlužující se interval opakování podle `available_at`, nejvýše osm pokusů. Události stejného času se nepředbíhají; chyba jednoho času neblokuje ostatní časy. Tlačítko **Opakovat chybné události** znovu zařadí chyby a probudí zpracování na pozadí, pokud je automatika zapnutá.
 
 - **Chyba:** po odstranění příčiny použijte opakování na stránce projektu.
 - **Konflikt:** zkontrolujte fakturu a porovnejte ji s Redmine. Obnovení konfliktní události vyžaduje administrátora a potvrzení; samo nepřepisuje konfliktní ruční změny.
-- **Zpracovává se po pádu workeru:** zastavte všechny workery, ověřte vzdálený stav a obnovte událost přes administrační ovládání projektu nebo:
+- **Zpracovává se po pádu webového procesu:** přes administrační ovládání projektu obnovte událost až po ověření, že původní proces neběží a vzdálený stav je známý. Před ruční obnovou vypněte automatiku proměnnou `MYUCTO_AUTO_SYNC=0` ve všech webových kontejnerech a znovu je vytvořte. Událost lze obnovit také příkazem:
 
   ```sh
   bundle exec rake redmine:myucto:recover_event EVENT_ID=123 CONFIRM=yes RAILS_ENV=production
   ```
 
-- **Neověřené založení konceptu (`creating`/`uncertain`):** nikdy neopakujte automaticky POST. Po timeoutu už faktura může existovat. Zastavte workery, vyhledejte ji v MyÚčtu a administrátorským formulářem v projektu připojte její ID. Plugin ověří odběratele, stav a unikátnost vazby. Poté obnovte událost.
+- **Neověřené založení konceptu (`creating`/`uncertain`):** při `creating` další události omezeně čekají, zda původní proces dokončí založení a uloží ID; samy nový POST neodesílají. Stav `uncertain` ani konflikt se automaticky neopakuje. Po timeoutu může faktura existovat: při ručním zásahu vypněte automatiku, vyhledejte ji v MyÚčtu a administrátorským formulářem v projektu připojte její ID. Plugin ověří odběratele, stav a unikátnost vazby. Poté samostatně obnovte událost.
 
-Pouze pokud jste ověřili, že původní požadavek **žádnou fakturu nevytvořil**, můžete povolit nový pokus:
+Nejasný výsledek vytvoření neřešte časovým resetem ani slepým opakováním požadavku. Stav ověřte v MyÚčtu a použijte administrační postup pro připojení již existující faktury nebo ruční obnovu události. Tím se zabrání duplicitnímu konceptu.
+
+Pouze pokud jste ověřili, že původní požadavek **žádnou fakturu nevytvořil**, můžete při vypnutém zpracování povolit nový pokus:
 
 ```sh
 bundle exec rake redmine:myucto:reset_creation BINDING_ID=123 CONFIRM=remote_absence_verified RAILS_ENV=production
 ```
 
-Následně samostatně obnovte událost. Tento reset není běžný retry; nesprávné použití může založit duplicitní fakturu.
+Následně samostatně obnovte událost. Tento reset není běžné opakování; nesprávné použití může založit duplicitní fakturu.
 
 ## Testy a odinstalace
 
 Postup a rozsah ověření jsou v [test/README.md](test/README.md). Testy používají syntetická data; nevystavují skutečné faktury.
 
-Před odinstalací zastavte plánovač, vypněte integraci a zálohujte databázi Redmine. Smazání tabulek pluginu zničí vazby i historii synchronizace. Případný rollback provádějte přes migrační nástroje Redmine, nikoli ručním mazáním tabulek za běhu.
+Před odinstalací vypněte automatiku pomocí `MYUCTO_AUTO_SYNC=0`, restartujte webové procesy a zálohujte databázi Redmine. Smazání tabulek pluginu zničí vazby i historii synchronizace. Případný rollback provádějte přes migrační nástroje Redmine, nikoli ručním mazáním tabulek za běhu.
 
 ## Práva a viditelnost
 
@@ -82,8 +84,8 @@ Přístup nevzniká samotným členstvím v projektu. Pokud právo přidělíte 
 
 ## Přechod na výběr uživatelů a přenos starších časů
 
-Po aktualizaci spusťte pluginovou migraci uvedenou v instalaci a restartujte Redmine i worker. Nový seznam uživatelů je zpočátku prázdný **i u dosavadních projektů**: v **Nastavení projektu → MyÚčto** proto vyberte členy, jejichž nové časy chcete přenášet. Již existující fronta a vazby se zachovají.
+Po aktualizaci spusťte pluginovou migraci uvedenou v instalaci, pokud ji daná verze vyžaduje, a restartujte webové kontejnery. Nový seznam uživatelů je zpočátku prázdný **i u dosavadních projektů**: v **Nastavení projektu → MyÚčto** proto vyberte členy, jejichž nové časy chcete přenášet. Již existující fronta a vazby se zachovají.
 
 Staré záznamy nemažte ani nezadávejte znovu. Administrátor na stránce **Projekt → MyÚčto → Přenos existujícího časového záznamu** zadá ID času z tohoto projektu a stiskne **Zařadit k synchronizaci**. Akce zachová původní záznam i datum práce a zařadí jej do běžné fronty pro příslušný měsíc. Respektuje zapnutí integrace a seznam povolených uživatelů; nepřenáší automaticky celou historii.
 
-Opakované zadání stejného ID už propojený/zařazený čas nepřidá podruhé. Jeho případné chyby řešte přes běžný přehled a obnovu událostí. Pokud je měsíční faktura již vystavená nebo uzamčená, worker záznam označí jako konflikt a fakturu nezmění. Ručně založené faktury se automaticky nevyhledávají ani nepřebírají.
+Opakované zadání stejného ID už propojený/zařazený čas nepřidá podruhé. Jeho případné chyby řešte přes běžný přehled a obnovu událostí. Pokud je měsíční faktura již vystavená nebo uzamčená, synchronizace záznam označí jako konflikt a fakturu nezmění. Ručně založené faktury se automaticky nevyhledávají ani nepřebírají.

@@ -62,6 +62,7 @@ class MyuctoProjectsController < ApplicationController
         flash[:notice] = l(:notice_myucto_retry_queued)
       end
     end
+    Myucto::Background.wake!
     redirect_to project_myucto_path(@project)
   end
 

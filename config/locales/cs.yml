@@ -15,7 +15,7 @@ cs:
   label_myucto_time_entry: ID vykázaného času
   label_myucto_attempts: Počet pokusů
   button_myucto_retry: Opakovat chybné události
-  text_myucto_token_environment: 'Token API nastavte do MYUCTO_API_TOKEN v prostředí Redmine i workeru. Token se neukládá do nastavení pluginu.'
+  text_myucto_token_environment: 'Token API nastavte jako MYUCTO_API_TOKEN v prostředí všech webových procesů Redmine. Token se neukládá do nastavení pluginu.'
   text_myucto_current_client: 'Uložené ID odběratele: %{id}'
   text_myucto_one_invoice: Každý projekt a kalendářní měsíc má vlastní fakturu. Změna odběratele nepřepíše existující faktury.
   text_myucto_event_limit: Zobrazeno posledních 100 událostí projektu a jeho propojených časových záznamů.

@@ -1,6 +1,6 @@
 namespace :redmine do
   namespace :myucto do
-    desc 'Synchronize pending time entries with MyÚčto (run every minute)'
+    desc 'Synchronize pending time entries with MyÚčto once (manual/diagnostic mode)'
     task sync: :environment do
       puts "Processed #{Myucto::Worker.new.run(limit: ENV.fetch('LIMIT', '100').to_i)} events"
     end

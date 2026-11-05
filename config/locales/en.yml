@@ -15,7 +15,7 @@ en:
   label_myucto_time_entry: Time entry ID
   label_myucto_attempts: Attempts
   button_myucto_retry: Retry failed events
-  text_myucto_token_environment: 'Set the API token in MYUCTO_API_TOKEN in both the Redmine and worker environments. Tokens are never stored in plugin settings.'
+  text_myucto_token_environment: 'Set MYUCTO_API_TOKEN in the environment of every Redmine web process. The token is not stored in plugin settings.'
   text_myucto_current_client: 'Stored customer ID: %{id}'
   text_myucto_one_invoice: Each project and calendar month has its own invoice. Changing the customer does not reassign existing invoices.
   text_myucto_event_limit: Showing the latest 100 events for this project and its linked time entries.

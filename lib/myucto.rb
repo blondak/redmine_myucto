@@ -7,6 +7,7 @@ require_relative 'myucto/uncertain_create'
 require_relative 'myucto/client'
 require_relative 'myucto/synchronizer'
 require_relative 'myucto/worker'
+require_relative 'myucto/background'
 
 module Myucto
   def self.configuration
