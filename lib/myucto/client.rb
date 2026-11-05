@@ -15,7 +15,7 @@ module Myucto
     READ_TIMEOUT = 20
     PAGE_SIZE = 200
 
-    def initialize(config = Myucto.configuration)
+    def initialize(config = Myucto.configuration, discovery: false)
       @config = config.transform_keys(&:to_s)
       @base_uri = URI.parse(@config.fetch('base_url', '').to_s.sub(%r{/+\z}, ''))
       unless %w[http https].include?(@base_uri.scheme) && @base_uri.host &&
@@ -26,9 +26,33 @@ module Myucto
       @token = ENV.fetch('MYUCTO_API_TOKEN', '') if @token.empty?
       raise Error, 'MYUCTO_API_TOKEN is not configured.' if @token.empty?
       raise Error, 'MyUcto token contains invalid characters.' if @token.match?(/[\r\n]/)
-      @supplier_id = positive_id(@config['supplier_id'])
+      @discovery = discovery
+      @supplier_id = discovery ? nil : positive_id(@config['supplier_id'])
     rescue URI::InvalidURIError
       raise Error, 'MyUcto base URL is invalid.'
+    end
+
+    # Discovery works before a supplier has been selected. MyÚčto restricts this
+    # list to the token's company/memberships; no guessed supplier header is sent.
+    def supplier_choices
+      identity = test_connection
+      unless identity.dig('token', 'scope') == 'read_write'
+        raise Conflict, 'MyUcto token must have read_write access.'
+      end
+      rows = request(:get, 'suppliers')
+      unless rows.is_a?(Array) && rows.all? { |row| row.is_a?(Hash) }
+        raise Unavailable, 'MyUcto returned an invalid supplier list.'
+      end
+      suppliers = rows.map do |row|
+        id = positive_id(row['id'])
+        company = row['company_name'].to_s
+        display = row['display_name'].to_s
+        name = company.empty? ? display : company
+        { 'id' => id, 'name' => name, 'display_name' => display,
+          'ic' => row['ic'].to_s, 'dic' => row['dic'].to_s,
+          'text' => "#{name} (ID #{id})" }
+      end
+      { 'suppliers' => suppliers, 'current_supplier_id' => identity.dig('supplier', 'id') }
     end
 
     def clients
@@ -100,6 +124,9 @@ module Myucto
     end
 
     def request(method, path, query: nil, body: nil)
+      if @discovery && !%w[auth/api-me suppliers].include?(path)
+        raise Error, 'Select a supplier before using business endpoints.'
+      end
       uri = @base_uri.dup
       prefix = uri.path.sub(%r{/+\z}, '')
       prefix += '/api/v1' unless prefix.end_with?('/api/v1')
@@ -108,7 +135,7 @@ module Myucto
       klass = { get: Net::HTTP::Get, post: Net::HTTP::Post, put: Net::HTTP::Put }.fetch(method)
       outgoing = klass.new(uri.request_uri)
       outgoing['Authorization'] = "Bearer #{@token}"
-      outgoing['X-Supplier-Id'] = @supplier_id.to_s
+      outgoing['X-Supplier-Id'] = @supplier_id.to_s if @supplier_id
       outgoing['Accept'] = 'application/json'
       if body
         outgoing['Content-Type'] = 'application/json'

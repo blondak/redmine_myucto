@@ -14,7 +14,7 @@ Plugin pro Redmine 6, který přenáší nové časové záznamy do měsíčníc
    bundle exec rake redmine:plugins:migrate NAME=redmine_myucto RAILS_ENV=production
    ```
 
-4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance a ID fakturující firmy. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
+4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance, klikněte na **Načíst firmy** a vyberte fakturující firmu podle názvu nebo ID. Pod výběrem se zobrazí její název, IČO a DIČ. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
 5. V projektu zapněte modul **MyÚčto**, rolím přidělte oprávnění pro zobrazení/správu integrace a v projektové záložce **MyÚčto** vyberte odběratele a zapněte synchronizaci.
 6. Naplánujte každou minutu následující úlohu, se stejným prostředím a uživatelem jako Redmine:
 

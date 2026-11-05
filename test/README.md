@@ -9,6 +9,14 @@ BUNDLE_GEMFILE=Gemfile.test bundle exec ruby -Itest -e 'Dir["test/**/*_test.rb"]
 
 Testovací Gemfile je oddělený od Redmine a nepřidává závislosti do jeho produkční instalace. Již připravené prostředí s Minitest 5, ActiveRecord 7.2 a SQLite3 může spustit stejný Ruby příkaz přímo.
 
+Chování vyhledávacího výběru firmy (výběr, chyba API a opožděná odpověď po změně URL) ověříte bez dalších balíčků:
+
+```sh
+node test/javascript/supplier_picker_test.js
+```
+
+Tyto testy používají jednoduchý testovací DOM; nenahrazují ověření vykreslení nabídky v prohlížeči s běžícím Redmine.
+
 - `test/unit`: HTTP kontrakt s řízeným transportem, autentizace, stránkování, timeouty, konflikty, opakování a slučování výkazů.
 - `test/integration`: skutečné migrace, modely a transakce ActiveRecord nad dočasnou SQLite v paměti; fronta, přesuny, obnova po ztracené odpovědi, unikátní vazby a callbacky času. `Project` a `TimeEntry` jsou minimální testovací modely, nikoli plná implementace Redmine.
 

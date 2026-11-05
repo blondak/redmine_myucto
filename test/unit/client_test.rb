@@ -58,6 +58,54 @@ class MyuctoClientTest < Minitest::Test
     end
   end
 
+  def test_discovery_without_supplier_id_returns_names_and_identity_without_scope_header
+    @config.delete('supplier_id')
+    rows = [{ 'id' => 3, 'company_name' => 'Example s.r.o.', 'display_name' => 'Example', 'ic' => '12345678', 'dic' => 'CZ12345678' }]
+    transport = Transport.new(response({ 'supplier' => { 'id' => 3 }, 'token' => { 'scope' => 'read_write' } }), response(rows))
+    Net::HTTP.stub(:new, transport) do
+      result = Myucto::Client.new(@config, discovery: true).supplier_choices
+      assert_equal 3, result['current_supplier_id']
+      assert_equal 'Example s.r.o. (ID 3)', result['suppliers'][0]['text']
+      assert_equal '12345678', result['suppliers'][0]['ic']
+      assert_equal ['/api/v1/auth/api-me', '/api/v1/suppliers'], transport.requests.map(&:path)
+      transport.requests.each { |request| assert_nil request['X-Supplier-Id'] }
+      refute result.to_s.include?('synthetic-token')
+    end
+  end
+
+  def test_discovery_cannot_access_business_endpoints
+    client = Myucto::Client.new(@config, discovery: true)
+    assert_raises(Myucto::Error) { client.invoice(10) }
+    assert_raises(Myucto::Error) { client.create_invoice(client_id: 1, period: '2026-11', project_name: 'Example') }
+  end
+
+  def test_normal_client_still_requires_supplier_id
+    @config.delete('supplier_id')
+    assert_raises(Myucto::Error) { Myucto::Client.new(@config) }
+  end
+
+  def test_discovery_rejects_read_only_token_before_loading_suppliers
+    transport = Transport.new(response({ 'token' => { 'scope' => 'read' } }))
+    Net::HTTP.stub(:new, transport) do
+      assert_raises(Myucto::Conflict) { Myucto::Client.new(@config, discovery: true).supplier_choices }
+      assert_equal 1, transport.requests.size
+    end
+  end
+
+  def test_discovery_handles_empty_and_malformed_supplier_lists
+    [[], {}].each do |rows|
+      transport = Transport.new(response({ 'token' => { 'scope' => 'read_write' } }), response(rows))
+      Net::HTTP.stub(:new, transport) do
+        client = Myucto::Client.new(@config, discovery: true)
+        if rows.is_a?(Array)
+          assert_equal [], client.supplier_choices['suppliers']
+        else
+          assert_raises(Myucto::Unavailable) { client.supplier_choices }
+        end
+      end
+    end
+  end
+
   def test_clients_fetches_every_page_and_sets_authentication_and_timeouts
     with_transport(response({ 'data' => [{ 'id' => 1 }], 'meta' => { 'pages' => 2 } }),
                    response({ 'data' => [{ 'id' => 2 }], 'meta' => { 'pages' => 2 } })) do |client, transport|

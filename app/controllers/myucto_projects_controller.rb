@@ -1,7 +1,7 @@
 class MyuctoProjectsController < ApplicationController
-  before_action :find_myucto_project, except: :test_connection
-  before_action :authorize, except: :test_connection
-  before_action :require_admin, only: [:attach_invoice, :resume_event, :test_connection]
+  before_action :find_myucto_project, except: [:test_connection, :suppliers]
+  before_action :authorize, except: [:test_connection, :suppliers]
+  before_action :require_admin, only: [:attach_invoice, :resume_event, :test_connection, :suppliers]
 
   def show
     load_status
@@ -96,6 +96,17 @@ class MyuctoProjectsController < ApplicationController
       flash[:notice] = l(:notice_myucto_retry_queued)
     end
     redirect_to project_myucto_path(@project)
+  end
+
+  def suppliers
+    # Administrator explicitly chooses the destination URL. The API token stays
+    # on the server and is never accepted from, or returned to, the browser.
+    config = Myucto.configuration.merge('base_url' => params.require(:base_url).to_s)
+    result = Myucto::Client.new(config, discovery: true).supplier_choices
+    response.headers['Cache-Control'] = 'no-store'
+    render json: result
+  rescue Myucto::Error
+    render json: { error: l(:error_myucto_suppliers_failed) }, status: :unprocessable_entity
   end
 
   def test_connection

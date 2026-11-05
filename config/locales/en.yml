@@ -57,3 +57,13 @@ en:
   myucto_state_creating: Creating
   myucto_state_uncertain: Uncertain result
   myucto_state_ready: Ready
+  label_myucto_supplier: Invoicing company
+  button_myucto_load_suppliers: Load companies
+  label_myucto_company_id: Company ID
+  label_myucto_vat_id: VAT ID
+  error_myucto_suppliers_failed: Could not load companies. Check the URL, environment token and read_write access.
+  error_myucto_select_supplier: Select a company from the list. Search by name or ID.
+  text_myucto_loading_suppliers: Loading companies from MyÚčto…
+  text_myucto_no_suppliers: No companies are available for this token.
+  text_myucto_supplier_unavailable: The saved company is not available for this token. Select a company from the list.
+  text_myucto_search_supplier: Start typing a company name or ID…

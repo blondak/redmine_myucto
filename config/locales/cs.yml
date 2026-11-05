@@ -57,3 +57,13 @@ cs:
   myucto_state_creating: Zakládá se
   myucto_state_uncertain: Neověřený výsledek
   myucto_state_ready: Připraveno
+  label_myucto_supplier: Fakturující firma
+  button_myucto_load_suppliers: Načíst firmy
+  label_myucto_company_id: IČO
+  label_myucto_vat_id: DIČ
+  error_myucto_suppliers_failed: Firmy se nepodařilo načíst. Ověřte URL, token v prostředí a oprávnění read_write.
+  error_myucto_select_supplier: Vyberte firmu z nabídky. Hledat můžete podle názvu nebo ID.
+  text_myucto_loading_suppliers: Načítání firem z MyÚčta…
+  text_myucto_no_suppliers: Token nemá dostupnou žádnou firmu.
+  text_myucto_supplier_unavailable: Uložená firma není dostupná pro tento token. Vyberte firmu z nabídky.
+  text_myucto_search_supplier: Začněte psát název firmy nebo ID…

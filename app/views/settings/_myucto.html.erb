@@ -1,11 +1,31 @@
-<p>
-  <label for="settings_base_url"><%= l(:label_myucto_api_url) %></label>
-  <%= text_field_tag 'settings[base_url]', settings['base_url'], id: 'settings_base_url', size: 70 %>
-</p>
-<p>
-  <label for="settings_supplier_id"><%= l(:label_myucto_supplier_id) %></label>
-  <%= number_field_tag 'settings[supplier_id]', settings['supplier_id'], id: 'settings_supplier_id', min: 1 %>
-</p>
+<%= javascript_include_tag 'supplier_picker', plugin: :redmine_myucto %>
+<div id="myucto-supplier-picker"
+     data-url="<%= myucto_suppliers_path %>"
+     data-loading="<%= l(:text_myucto_loading_suppliers) %>"
+     data-error="<%= l(:error_myucto_suppliers_failed) %>"
+     data-invalid="<%= l(:error_myucto_select_supplier) %>"
+     data-empty="<%= l(:text_myucto_no_suppliers) %>"
+     data-unavailable="<%= l(:text_myucto_supplier_unavailable) %>">
+  <p>
+    <label for="settings_base_url"><%= l(:label_myucto_api_url) %></label>
+    <%= text_field_tag 'settings[base_url]', settings['base_url'], id: 'settings_base_url', size: 70 %>
+    <%= button_tag l(:button_myucto_load_suppliers), type: 'button', id: 'myucto-load-suppliers' %>
+  </p>
+  <p>
+    <label for="myucto-supplier-search"><%= l(:label_myucto_supplier) %></label>
+    <%= hidden_field_tag 'settings[supplier_id]', settings['supplier_id'], id: 'settings_supplier_id' %>
+    <%= text_field_tag nil, settings['supplier_id'].present? ? "ID #{settings['supplier_id']}" : '',
+                       id: 'myucto-supplier-search', list: 'myucto-supplier-options', size: 60,
+                       autocomplete: 'off', placeholder: l(:text_myucto_search_supplier) %>
+    <datalist id="myucto-supplier-options"></datalist>
+  </p>
+  <p id="myucto-supplier-status" class="info" role="status" aria-live="polite"></p>
+  <div id="myucto-supplier-details" class="box" hidden>
+    <strong id="myucto-supplier-name"></strong><br>
+    <span><%= l(:label_myucto_company_id) %>: <span id="myucto-supplier-ic"></span></span>
+    <span> · <%= l(:label_myucto_vat_id) %>: <span id="myucto-supplier-dic"></span></span>
+  </div>
+</div>
 <p class="info"><%= l(:text_myucto_token_environment) %></p>
 <p><%= link_to l(:button_myucto_test_connection), test_myucto_connection_path, method: :post %></p>
 <p class="info"><%= l(:text_myucto_test_saved_settings) %></p>
