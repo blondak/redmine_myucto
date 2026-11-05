@@ -1,0 +1,59 @@
+cs:
+  label_myucto: MyÚčto
+  project_module_myucto: MyÚčto
+  permission_view_myucto: Zobrazit synchronizaci MyÚčto
+  permission_manage_myucto: Spravovat synchronizaci MyÚčto
+  label_myucto_api_url: URL API
+  label_myucto_supplier_id: ID firmy dodavatele
+  label_myucto_enabled: Zapnout synchronizaci
+  label_myucto_client: Odběratel
+  label_myucto_invoices: Měsíční faktury
+  label_myucto_invoice_id: ID faktury
+  label_myucto_period: Měsíc
+  label_myucto_error: Chyba
+  label_myucto_events: Události synchronizace
+  label_myucto_time_entry: ID vykázaného času
+  label_myucto_attempts: Počet pokusů
+  button_myucto_retry: Opakovat chybné události
+  text_myucto_token_environment: 'Token API nastavte do MYUCTO_API_TOKEN v prostředí Redmine i workeru. Token se neukládá do nastavení pluginu.'
+  text_myucto_current_client: 'Uložené ID odběratele: %{id}'
+  text_myucto_one_invoice: Každý projekt a kalendářní měsíc má vlastní fakturu. Změna odběratele nepřepíše existující faktury.
+  text_myucto_event_limit: Zobrazeno posledních 100 událostí projektu a jeho propojených časových záznamů.
+  error_myucto_api_unavailable: Odběratele se nepodařilo načíst z MyÚčto. Zkontrolujte připojení a nastavení API.
+  error_myucto_client_unavailable: není dostupný v nastavené firmě MyÚčto
+  error_myucto_unsafe_retry: Vytvoření faktury není vyřešené nebo je nutné prověřit konflikt. Opakování je zablokované; nejprve ověřte stav faktury v MyÚčto.
+  notice_myucto_retry_queued: Chybné události byly zařazeny k opakování.
+  myucto_invoice_not_editable: 'Fakturu %{id} nelze měnit (stav: %{status}). Synchronizovat lze pouze neuzamčený koncept.'
+  myucto_binding_blocked: 'Faktura za %{period} vyžaduje ověření a vyřešení vazby před změnou vykázaného času.'
+  myucto_change_refused: 'MyÚčto odmítlo změnu: %{reason}'
+  button_myucto_attach: Připojit ověřenou fakturu
+  button_myucto_resume: Obnovit událost
+  button_myucto_test_connection: Otestovat uložené nastavení API
+  text_myucto_test_saved_settings: Před testem nastavení uložte. Test použije uloženou firmu a token z prostředí.
+  text_myucto_attach_warning: Před připojením zastavte worker a ověřte fakturu v MyÚčto. Tato operace nevytváří novou fakturu.
+  text_myucto_confirm_attach: Ověřil jsem, že jde o správnou existující měsíční fakturu tohoto projektu a odběratele.
+  text_myucto_resume_warning: Před obnovením vyřešte nahlášený konflikt a ověřte stav faktury v MyÚčto. Událost ve stavu processing může zpracovávat aktivní worker.
+  text_myucto_worker_stopped: Potvrzuji, že všechny synchronizační workery jsou zastavené.
+  text_myucto_confirm_resume: Ověřil jsem vzdálený stav a chci obnovit tuto událost.
+  error_myucto_confirmation_required: Pro ruční obnovu konfliktní či zpracovávané události je nutné výslovné potvrzení.
+  error_myucto_invoice_id: Zadejte kladné ID faktury.
+  error_myucto_recovery_state: Tato vazba faktury již nečeká na ruční obnovu.
+  error_myucto_worker_active: Zastavte všechny synchronizační workery a před obnovou to výslovně potvrďte.
+  error_myucto_scope: Token API musí mít oprávnění read_write.
+  error_myucto_connection_changed: URL API nebo firma se od vytvoření vazby změnila. Před obnovou vraťte původní připojení.
+  error_myucto_invoice_mismatch: ID faktury nebo její odběratel neodpovídá této vazbě.
+  error_myucto_invoice_already_bound: Tato faktura již patří jinému projektu nebo měsíci.
+  error_myucto_recovery_failed: Obnova selhala. Před dalším pokusem ověřte připojení API a vazbu faktury.
+  error_myucto_supplier_mismatch: Přihlášená firma neodpovídá uloženému ID firmy.
+  error_myucto_connection_failed: Test API selhal. Zkontrolujte uloženou URL, ID firmy, token v prostředí a oprávnění API.
+  notice_myucto_invoice_attached: Existující faktura byla ověřena a připojena. Dotčené události samostatně zkontrolujte a obnovte.
+  notice_myucto_connection_ok: Připojení API, identita firmy a oprávnění tokenu read_write byly ověřeny.
+  myucto_positive_hours: musí být alespoň 0,01 h pro přenos do MyÚčta
+  myucto_state_pending: Čeká
+  myucto_state_processing: Zpracovává se
+  myucto_state_done: Synchronizováno
+  myucto_state_failed: Chyba
+  myucto_state_conflict: Konflikt
+  myucto_state_creating: Zakládá se
+  myucto_state_uncertain: Neověřený výsledek
+  myucto_state_ready: Připraveno

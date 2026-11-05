@@ -1,0 +1,6 @@
+.bundle/
+vendor/bundle/
+coverage/
+*.sqlite3
+*.sqlite3-*
+.env

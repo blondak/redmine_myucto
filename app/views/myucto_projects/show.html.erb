@@ -1,0 +1,76 @@
+<h2><%= l(:label_myucto) %></h2>
+
+<% if User.current.allowed_to?(:manage_myucto, @project) %>
+  <%= error_messages_for 'setting' %>
+  <%= labelled_form_for @setting, url: project_myucto_path(@project), method: :patch do |f| %>
+    <div class="box tabular">
+      <p><%= f.check_box :enabled, label: :label_myucto_enabled %></p>
+      <p><%= f.select :client_id, (@clients || []).map { |client| [client_value(client, 'company_name').presence || client_value(client, 'name').presence || client_value(client, 'id'), client_value(client, 'id')] }, { include_blank: true, label: :label_myucto_client } %></p>
+      <% if @setting.client_id.present? %>
+        <p class="info"><%= l(:text_myucto_current_client, id: @setting.client_id) %></p>
+      <% end %>
+      <p class="info"><%= l(:text_myucto_one_invoice) %></p>
+    </div>
+    <%= submit_tag l(:button_save) %>
+  <% end %>
+<% end %>
+
+<h3><%= l(:label_myucto_invoices) %></h3>
+<table class="list">
+  <thead><tr><th><%= l(:label_myucto_period) %></th><th><%= l(:label_myucto_client) %></th><th><%= l(:label_myucto_invoice_id) %></th><th><%= l(:field_status) %></th><th><%= l(:label_myucto_error) %></th></tr></thead>
+  <tbody>
+    <% @bindings.each do |binding| %>
+      <tr><td><%= binding.period %></td><td><%= binding.client_id %></td><td>
+        <% if (binding.connection_key.blank? || binding.connection_key == Myucto.connection_key) && (invoice_url = remote_invoice_url(binding.invoice_id)) %>
+          <%= link_to binding.invoice_id, invoice_url, target: '_blank', rel: 'noopener noreferrer' %>
+        <% else %>
+          <%= binding.invoice_id %>
+        <% end %>
+      </td><td><%= l("myucto_state_#{binding.state}", default: binding.state) %></td><td><%= binding.error %>
+        <% if User.current.admin? && %w[uncertain creating].include?(binding.state) %>
+          <%= form_tag attach_project_myucto_invoice_path(@project, binding.id), method: :post do %>
+            <p class="warning"><%= l(:text_myucto_attach_warning) %></p>
+            <p><%= label_tag "invoice_id_#{binding.id}", l(:label_myucto_invoice_id) %>
+              <%= number_field_tag :invoice_id, nil, id: "invoice_id_#{binding.id}", min: 1, required: true %></p>
+            <p><%= check_box_tag :worker_stopped, '1', false, id: "attach_worker_stopped_#{binding.id}", required: true %>
+              <%= label_tag "attach_worker_stopped_#{binding.id}", l(:text_myucto_worker_stopped) %></p>
+            <p><%= check_box_tag :confirm_recovery, '1', false, id: "confirm_binding_#{binding.id}", required: true %>
+              <%= label_tag "confirm_binding_#{binding.id}", l(:text_myucto_confirm_attach) %></p>
+            <%= submit_tag l(:button_myucto_attach), data: { confirm: l(:text_myucto_confirm_attach) } %>
+          <% end %>
+        <% end %>
+      </td></tr>
+    <% end %>
+  </tbody>
+</table>
+
+<h3><%= l(:label_myucto_events) %></h3>
+<p class="info"><%= l(:text_myucto_event_limit) %></p>
+<table class="list">
+  <thead><tr><th>ID</th><th><%= l(:label_myucto_time_entry) %></th><th><%= l(:field_status) %></th><th><%= l(:label_myucto_attempts) %></th><th><%= l(:label_myucto_error) %></th></tr></thead>
+  <tbody>
+    <% @events.each do |event| %>
+      <tr><td><%= event.id %></td><td><%= event.time_entry_id %></td><td><%= l("myucto_state_#{event.state}", default: event.state) %></td><td><%= event.attempts %></td><td><%= event.last_error %>
+        <% if User.current.admin? && %w[conflict processing].include?(event.state) %>
+          <%= form_tag resume_project_myucto_event_path(@project, event.id), method: :post do %>
+            <p class="warning"><%= l(:text_myucto_resume_warning) %></p>
+            <% if event.state == 'processing' %>
+              <p><%= check_box_tag :worker_stopped, '1', false, id: "worker_stopped_#{event.id}", required: true %>
+                <%= label_tag "worker_stopped_#{event.id}", l(:text_myucto_worker_stopped) %></p>
+            <% end %>
+            <p><%= check_box_tag :confirm_recovery, '1', false, id: "confirm_event_#{event.id}", required: true %>
+              <%= label_tag "confirm_event_#{event.id}", l(:text_myucto_confirm_resume) %></p>
+            <%= submit_tag l(:button_myucto_resume), data: { confirm: l(:text_myucto_confirm_resume) } %>
+          <% end %>
+        <% end %>
+      </td></tr>
+    <% end %>
+  </tbody>
+</table>
+<% if User.current.allowed_to?(:manage_myucto, @project) %>
+  <% if @retry_safe %>
+    <%= button_to l(:button_myucto_retry), retry_project_myucto_path(@project), method: :post %>
+  <% else %>
+    <p class="warning"><%= l(:error_myucto_unsafe_retry) %></p>
+  <% end %>
+<% end %>

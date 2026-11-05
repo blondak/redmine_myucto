@@ -1,0 +1,11 @@
+<p>
+  <label for="settings_base_url"><%= l(:label_myucto_api_url) %></label>
+  <%= text_field_tag 'settings[base_url]', settings['base_url'], id: 'settings_base_url', size: 70 %>
+</p>
+<p>
+  <label for="settings_supplier_id"><%= l(:label_myucto_supplier_id) %></label>
+  <%= number_field_tag 'settings[supplier_id]', settings['supplier_id'], id: 'settings_supplier_id', min: 1 %>
+</p>
+<p class="info"><%= l(:text_myucto_token_environment) %></p>
+<p><%= link_to l(:button_myucto_test_connection), test_myucto_connection_path, method: :post %></p>
+<p class="info"><%= l(:text_myucto_test_saved_settings) %></p>

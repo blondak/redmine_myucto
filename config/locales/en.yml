@@ -1,0 +1,59 @@
+en:
+  label_myucto: MyÚčto
+  project_module_myucto: MyÚčto
+  permission_view_myucto: View MyÚčto synchronization
+  permission_manage_myucto: Manage MyÚčto synchronization
+  label_myucto_api_url: API URL
+  label_myucto_supplier_id: Supplier company ID
+  label_myucto_enabled: Enable synchronization
+  label_myucto_client: Customer
+  label_myucto_invoices: Monthly invoices
+  label_myucto_invoice_id: Invoice ID
+  label_myucto_period: Month
+  label_myucto_error: Error
+  label_myucto_events: Synchronization events
+  label_myucto_time_entry: Time entry ID
+  label_myucto_attempts: Attempts
+  button_myucto_retry: Retry failed events
+  text_myucto_token_environment: 'Set the API token in MYUCTO_API_TOKEN in both the Redmine and worker environments. Tokens are never stored in plugin settings.'
+  text_myucto_current_client: 'Stored customer ID: %{id}'
+  text_myucto_one_invoice: Each project and calendar month has its own invoice. Changing the customer does not reassign existing invoices.
+  text_myucto_event_limit: Showing the latest 100 events for this project and its linked time entries.
+  error_myucto_api_unavailable: Could not load customers from MyÚčto. Check the API connection and configuration.
+  error_myucto_client_unavailable: is not available from the configured MyÚčto company
+  error_myucto_unsafe_retry: Invoice creation is unresolved or a conflict needs review. Automatic retry is blocked; reconcile the remote invoice before recovery.
+  notice_myucto_retry_queued: Failed events have been queued for retry.
+  myucto_invoice_not_editable: 'Invoice %{id} cannot be changed (status: %{status}); only unlocked drafts can be synchronized.'
+  myucto_binding_blocked: 'Invoice for %{period} requires reconciliation before time entries can be changed.'
+  myucto_change_refused: 'MyÚčto refused the change: %{reason}'
+  button_myucto_attach: Attach verified invoice
+  button_myucto_resume: Resume event
+  button_myucto_test_connection: Test saved API configuration
+  text_myucto_test_saved_settings: Save settings before testing. The test uses the configured supplier and the environment token.
+  text_myucto_attach_warning: Stop the worker and verify the invoice in MyÚčto before attaching it. This action does not create a new invoice.
+  text_myucto_confirm_attach: I verified that this is the correct existing monthly invoice for this project and customer.
+  text_myucto_resume_warning: Resolve the reported conflict and reconcile the remote invoice before resuming. A processing event may belong to an active worker.
+  text_myucto_worker_stopped: I confirm all synchronization workers are stopped.
+  text_myucto_confirm_resume: I checked the remote state and want to resume this event.
+  error_myucto_confirmation_required: Explicit recovery confirmation is required for a conflicted or processing event.
+  error_myucto_invoice_id: Enter a positive invoice ID.
+  error_myucto_recovery_state: This invoice binding is no longer awaiting recovery.
+  error_myucto_worker_active: Stop all synchronization workers and confirm this before recovery.
+  error_myucto_scope: The API token requires read_write scope.
+  error_myucto_connection_changed: The API URL or supplier has changed since this invoice binding was created. Restore the original connection before recovery.
+  error_myucto_invoice_mismatch: The invoice ID or customer does not match this binding.
+  error_myucto_invoice_already_bound: This invoice is already assigned to another project or month.
+  error_myucto_recovery_failed: Recovery failed. Check the API connection and invoice mapping before trying again.
+  error_myucto_supplier_mismatch: The authenticated supplier does not match the saved company ID.
+  error_myucto_connection_failed: The API test failed. Check the saved URL, supplier ID, environment token and API access.
+  notice_myucto_invoice_attached: The existing invoice was verified and attached. Review and resume the affected events separately.
+  notice_myucto_connection_ok: The API connection, supplier identity and read_write token scope were verified.
+  myucto_positive_hours: must be at least 0.01 hours for MyÚčto synchronization
+  myucto_state_pending: Pending
+  myucto_state_processing: Processing
+  myucto_state_done: Synchronized
+  myucto_state_failed: Failed
+  myucto_state_conflict: Conflict
+  myucto_state_creating: Creating
+  myucto_state_uncertain: Uncertain result
+  myucto_state_ready: Ready
