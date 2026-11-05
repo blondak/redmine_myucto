@@ -2,7 +2,7 @@
 
 require 'bigdecimal'
 require 'date'
-require_relative 'errors'
+require_relative 'conflict'
 
 module Myucto
   # The caller serializes reconciliation per invoice. MyUcto has no conditional

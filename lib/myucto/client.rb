@@ -4,7 +4,9 @@ require 'json'
 require 'net/http'
 require 'openssl'
 require 'uri'
-require_relative 'errors'
+require_relative 'unavailable'
+require_relative 'conflict'
+require_relative 'uncertain_create'
 
 module Myucto
   # MyUcto returns bare objects, except for its paginated list endpoints.

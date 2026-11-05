@@ -2,6 +2,7 @@
 
 require 'minitest/autorun'
 require_relative '../../lib/myucto/synchronizer'
+require_relative '../../lib/myucto/unavailable'
 
 class SynchronizerTest < Minitest::Test
   class Client

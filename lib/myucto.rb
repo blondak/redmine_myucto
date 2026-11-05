@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 require 'digest'
-require_relative 'myucto/errors'
+require_relative 'myucto/error'
+require_relative 'myucto/unavailable'
+require_relative 'myucto/conflict'
+require_relative 'myucto/uncertain_create'
 require_relative 'myucto/client'
 require_relative 'myucto/synchronizer'
 require_relative 'myucto/worker'
