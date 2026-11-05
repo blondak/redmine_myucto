@@ -31,13 +31,22 @@ assert_tab.call(1, 'administrator sees settings')
 
 MyuctoProjectSetting.create!(project: project, client_id: 7, allowed_user_ids: [admin.id])
 view = settings_view.call
-view.instance_variable_set(:@clients, [{ 'id' => 7, 'company_name' => 'Synthetic client' }])
+view.instance_variable_set(:@clients, [{ 'id' => 7, 'company_name' => 'Synthetic client', 'ic' => '12345678' }])
 html = view.render(partial: 'myucto_projects/settings')
 %w[myucto_project_setting[client_id] myucto_project_setting[allowed_user_ids][]].each do |field|
   raise "Missing form field #{field}" unless html.include?(field)
 end
 raise 'Customer label missing' unless html.include?('Synthetic client')
+raise 'Customer registration number missing' unless html.include?('12345678')
+raise 'Customer select cannot be enhanced' unless html.include?('myucto-company-select')
 puts 'PASS native settings form renders customer and allowed users'
+
+supplier_html = view.render(partial: 'settings/myucto', locals: { settings: { 'base_url' => 'https://billing.example.test', 'supplier_id' => '7' } })
+raise 'Supplier is not a real select' unless supplier_html.match?(/<select[^>]+name="settings\[supplier_id\]"/)
+raise 'Saved supplier ID is missing' unless supplier_html.match?(/<option[^>]+value="7"/)
+raise 'Supplier select cannot be enhanced' unless supplier_html.include?('myucto-company-select')
+raise 'Old datalist still rendered' if supplier_html.include?('<datalist')
+puts 'PASS global supplier form renders a real select with the saved ID'
 
 setting = MyuctoProjectSetting.find_by!(project: project)
 setting.update!(enabled: true)

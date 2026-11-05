@@ -1,4 +1,6 @@
 cs:
+  text_myucto_search_company: 'Název, IČO nebo ID firmy…'
+  error_myucto_select_company: 'Vyberte firmu z nabídky, nebo pole vymažte.'
   label_myucto: MyÚčto
   project_module_myucto: MyÚčto
   permission_view_myucto: Zobrazit synchronizaci MyÚčto
@@ -62,11 +64,9 @@ cs:
   label_myucto_company_id: IČO
   label_myucto_vat_id: DIČ
   error_myucto_suppliers_failed: Firmy se nepodařilo načíst. Ověřte URL, token v prostředí a oprávnění read_write.
-  error_myucto_select_supplier: Vyberte firmu z nabídky. Hledat můžete podle názvu nebo ID.
   text_myucto_loading_suppliers: Načítání firem z MyÚčta…
   text_myucto_no_suppliers: Token nemá dostupnou žádnou firmu.
   text_myucto_supplier_unavailable: Uložená firma není dostupná pro tento token. Vyberte firmu z nabídky.
-  text_myucto_search_supplier: Začněte psát název firmy nebo ID…
   label_myucto_project_settings: Nastavení MyÚčta
   label_myucto_allowed_users: 'Přenášet časy těchto uživatelů'
   text_myucto_allowed_users: 'Prázdný seznam nepřenáší žádné nové časy. Rozhoduje uživatel, na kterého je čas vykázaný. Již propojené záznamy se dále synchronizují i po odebrání uživatele.'

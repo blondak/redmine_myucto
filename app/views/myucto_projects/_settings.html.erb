@@ -2,10 +2,16 @@
   <% setting, clients, api_error = data %>
   <%= error_messages_for 'myucto_setting' %>
   <% if api_error %><p class="warning"><%= api_error %></p><% end %>
+  <%= javascript_include_tag 'company_picker', plugin: :redmine_myucto %>
   <%= labelled_form_for setting, url: project_myucto_path(@project), method: :patch do |f| %>
     <div class="box tabular">
       <p><%= f.check_box :enabled, label: :label_myucto_enabled %></p>
-      <p><%= f.select :client_id, clients, { include_blank: true, label: :label_myucto_client }, { disabled: api_error.present? } %></p>
+      <p><%= f.select :client_id, clients,
+                      { include_blank: true, label: :label_myucto_client },
+                      { class: 'myucto-company-select',
+                        data: { placeholder: l(:text_myucto_search_company),
+                                invalid: l(:error_myucto_select_company) },
+                        disabled: api_error.present? } %></p>
       <p><%= f.select :allowed_user_ids, myucto_user_options,
                       { label: :label_myucto_allowed_users }, { multiple: true, size: 8 } %></p>
       <p class="info"><%= l(:text_myucto_allowed_users) %></p>

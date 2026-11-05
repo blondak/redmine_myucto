@@ -17,6 +17,15 @@ node test/javascript/supplier_picker_test.js
 
 Tyto testy používají jednoduchý testovací DOM; nenahrazují ověření vykreslení nabídky v prohlížeči s běžícím Redmine.
 
+Společný výběr dodavatele a odběratele lze ověřit skutečným Chromium a jQuery UI přibaleným v cílovém Redmine:
+
+```sh
+docker run --rm --entrypoint cat redmine:6.1 /usr/src/redmine/app/assets/javascripts/jquery-3.7.1-ui-1.13.3.js > /tmp/redmine-jquery-ui.js
+REDMINE_JQUERY_PATH=/tmp/redmine-jquery-ui.js node test/javascript/company_picker_browser.js
+```
+
+Test ověřuje hledání názvu bez diakritiky, IČO a ID, šipky/Enter, odesílání ID, odmítnutí nevybraného textu, bezpečné zobrazení názvů a běžný select při chybějícím autocomplete. Používá dočasný profil prohlížeče a syntetické firmy; nevolá MyÚčto. Cestu k prohlížeči lze nastavit pomocí `CHROMIUM` a snímek uložit přes `MYUCTO_PICKER_SCREENSHOT`.
+
 - `test/unit`: HTTP kontrakt s řízeným transportem, autentizace, stránkování, timeouty, konflikty, opakování a slučování výkazů.
 - `test/integration`: skutečné migrace, modely a transakce ActiveRecord nad dočasnou SQLite v paměti; fronta, přesuny, obnova po ztracené odpovědi, unikátní vazby a callbacky času. `Project` a `TimeEntry` jsou minimální testovací modely, nikoli plná implementace Redmine.
 

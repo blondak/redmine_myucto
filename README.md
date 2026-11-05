@@ -14,9 +14,11 @@ Plugin pro Redmine 6, který přenáší nové časové záznamy do měsíčníc
    bundle exec rake redmine:plugins:migrate NAME=redmine_myucto RAILS_ENV=production
    ```
 
-4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance, klikněte na **Načíst firmy** a vyberte fakturující firmu podle názvu nebo ID. Pod výběrem se zobrazí její název, IČO a DIČ. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
+4. V **Administrace → Pluginy → Redmine MyÚčto → Nastavení** vyplňte URL instance, klikněte na **Načíst firmy** a vyberte fakturující firmu podle názvu, IČO nebo ID. Pod výběrem se zobrazí její název, IČO a DIČ. URL může obsahovat instalační podadresář nebo končit `/api/v1`. Nastavení uložte a otestujte připojení. Pro vzdálené spojení použijte HTTPS.
 5. V projektu zapněte modul **MyÚčto**, rolím přidělte oprávnění pro zobrazení/správu integrace a v **Nastavení projektu → MyÚčto** vyberte klienta faktury (odběratele), povolené uživatele a zapněte synchronizaci. Projektová záložka **MyÚčto** slouží pro přehled faktur a synchronizace.
 6. Restartujte webové kontejnery Redmine. Při aktualizaci z verze bez automatického zpracování to stačí; nová migrace databáze není potřeba.
+
+Dodavatel i projektový odběratel používají autocomplete přibalené v Redmine, stejně jako výběr úkolu. Po kliknutí se nabídnou firmy; psaní filtruje názvy, IČO a ID i bez diakritiky. Volbu potvrďte myší nebo šipkami a Enterem. Pokud autocomplete není dostupné, zůstane běžný select. Do formuláře se vždy ukládá ID vybrané firmy; nevybraný text nelze uložit. Při chybě API se uložené ID neztratí.
 
 Synchronizace běží uvnitř každého webového procesu přes vyhrazený ActiveJob Async adapter s jedním vláknem na PID. Nepotřebuje cron, Redis ani samostatnou službu workeru. Fronta outboxu je uložena v databázi: změna ji probudí po potvrzení transakce a na startu serveru se čekající práce načte znovu. Periodická kontrola běží každých 60 sekund i bez příchozích webových požadavků; respektuje `available_at` a hotové události znovu nezpracovává. Tento adaptér se nevztahuje na ostatní ActiveJob úlohy Redmine, například e-mail.
 

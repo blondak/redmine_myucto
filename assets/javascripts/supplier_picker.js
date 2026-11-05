@@ -1,55 +1,55 @@
-/* Native searchable combobox: no CDN or additional JavaScript dependency. */
+/* Supplier discovery fills a real select, optionally enhanced by Redmine autocomplete. */
 (function () {
   function initialize() {
     const root = document.getElementById('myucto-supplier-picker');
     if (!root || root.dataset.initialized) return;
     root.dataset.initialized = 'true';
     const url = document.getElementById('settings_base_url');
-    const id = document.getElementById('settings_supplier_id');
-    const search = document.getElementById('myucto-supplier-search');
-    const list = document.getElementById('myucto-supplier-options');
+    const select = document.getElementById('settings_supplier_id');
     const status = document.getElementById('myucto-supplier-status');
     const details = document.getElementById('myucto-supplier-details');
     const button = document.getElementById('myucto-load-suppliers');
     let suppliers = [];
     let generation = 0;
 
-    function choose(supplier) {
-      id.value = String(supplier.id);
-      search.value = supplier.text;
-      search.setCustomValidity('');
+    function renderDetails() {
+      const supplier = suppliers.find(item => String(item.id) === select.value);
+      details.hidden = !supplier;
+      if (!supplier) return;
       document.getElementById('myucto-supplier-name').textContent = supplier.name;
       document.getElementById('myucto-supplier-ic').textContent = supplier.ic || '—';
       document.getElementById('myucto-supplier-dic').textContent = supplier.dic || '—';
-      details.hidden = false;
-      status.textContent = '';
     }
-
-    search.addEventListener('input', function () {
-      const selected = suppliers.find(supplier => supplier.text === search.value);
-      if (selected) choose(selected);
-      else {
-        id.value = '';
-        details.hidden = true;
-        search.setCustomValidity(root.dataset.invalid);
-      }
+    function refresh(preserveSearch) {
+      if (window.MyuctoCompanyPicker) window.MyuctoCompanyPicker.refresh(select, { preserveSearch: preserveSearch });
+      renderDetails();
+    }
+    select.addEventListener('change', function () {
+      // The autocomplete owns its input while the user is typing. Only update
+      // the details here; refreshing the input would erase the search term.
+      renderDetails();
+      if (!details.hidden) status.textContent = '';
     });
+
+    function option(value, text) {
+      const item = document.createElement('option');
+      item.value = String(value);
+      item.textContent = text;
+      return item;
+    }
 
     url.addEventListener('input', function () {
       generation += 1;
       suppliers = [];
-      list.replaceChildren();
-      details.hidden = true;
-      id.value = '';
-      search.value = '';
-      search.setCustomValidity(root.dataset.invalid);
+      select.replaceChildren(option('', ''));
+      select.value = '';
+      refresh();
       status.textContent = '';
       button.disabled = false;
     });
 
     async function load() {
       const attempt = ++generation;
-      const previousId = id.value;
       button.disabled = true;
       status.textContent = root.dataset.loading;
       try {
@@ -64,29 +64,31 @@
         const data = await response.json();
         if (attempt !== generation) return;
         if (!Array.isArray(data.suppliers)) throw new Error('invalid response');
+        const previousId = select.value;
         suppliers = data.suppliers;
-        list.replaceChildren();
+        select.replaceChildren(option('', ''));
         suppliers.forEach(supplier => {
-          const option = document.createElement('option');
-          option.value = supplier.text;
-          option.label = [supplier.display_name, supplier.ic].filter(Boolean).join(' · ');
-          list.appendChild(option);
+          const label = [supplier.text, supplier.ic].filter(Boolean).join(' · ');
+          select.appendChild(option(supplier.id, label));
         });
         const selected = suppliers.find(supplier => String(supplier.id) === previousId);
-        // Do not silently switch an existing integration to another company.
-        if (selected) choose(selected);
-        else if (!previousId && suppliers.length === 1) choose(suppliers[0]);
-        else {
-          id.value = '';
-          details.hidden = true;
-          search.value = '';
-          search.setCustomValidity(root.dataset.invalid);
-          status.textContent = previousId ? root.dataset.unavailable :
-            (suppliers.length ? root.dataset.invalid : root.dataset.empty);
+        if (selected) {
+          select.value = String(selected.id);
+          status.textContent = '';
+        } else if (previousId) {
+          // An inaccessible saved company must not silently turn into another
+          // supplier (or be erased just by opening and saving settings).
+          select.appendChild(option(previousId, `ID ${previousId}`));
+          select.value = previousId;
+          status.textContent = root.dataset.unavailable;
+        } else {
+          select.value = suppliers.length === 1 ? String(suppliers[0].id) : '';
+          status.textContent = suppliers.length ? '' : root.dataset.empty;
         }
+        refresh(true);
       } catch (_) {
         if (attempt === generation) status.textContent = root.dataset.error;
-        // Keep the saved ID on an outage; opening settings must not erase it.
+        // Keep the selected ID and options on an outage.
       } finally {
         if (attempt === generation) button.disabled = false;
       }

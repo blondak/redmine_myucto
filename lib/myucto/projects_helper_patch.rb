@@ -35,7 +35,10 @@ module Myucto
       end
       options = @clients.map do |client|
         name = client['company_name'].presence || client['name'].presence || client['id']
-        ["#{name} (ID #{client['id']})", client['id']]
+        company_id = client['ic'].presence
+        details = [("#{l(:label_myucto_company_id)} #{company_id}" if company_id.present?), "ID #{client['id']}"].compact
+        label = ([name] + details).join(' · ')
+        [label, client['id']]
       end
       if @myucto_setting.client_id && options.none? { |option| option[1].to_s == @myucto_setting.client_id.to_s }
         options << [l(:text_myucto_current_client, id: @myucto_setting.client_id), @myucto_setting.client_id]
