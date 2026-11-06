@@ -91,3 +91,19 @@ Po aktualizaci spusťte pluginovou migraci uvedenou v instalaci, pokud ji daná 
 Staré záznamy nemažte ani nezadávejte znovu. Administrátor na stránce **Projekt → MyÚčto → Přenos existujícího časového záznamu** zadá ID času z tohoto projektu a stiskne **Zařadit k synchronizaci**. Akce zachová původní záznam i datum práce a zařadí jej do běžné fronty pro příslušný měsíc. Respektuje zapnutí integrace a seznam povolených uživatelů; nepřenáší automaticky celou historii.
 
 Opakované zadání stejného ID už propojený/zařazený čas nepřidá podruhé. Jeho případné chyby řešte přes běžný přehled a obnovu událostí. Pokud je měsíční faktura již vystavená nebo uzamčená, synchronizace záznam označí jako konflikt a fakturu nezmění. Ručně založené faktury se automaticky nevyhledávají ani nepřebírají.
+
+## Volitelná šablona účtování výkazu
+
+V **Nastavení projektu → MyÚčto → Šablona účtování výkazu** lze vybrat šablonu nastaveného dodavatele. Výchozí volba **Bez šablony** zachovává dosavadní přenos. Výběr spravuje stejné oprávnění jako odběratele (`manage_myucto`). Vyžaduje MyÚčto s podporou šablon účtování (PR #323).
+
+Při založení nové měsíční vazby plugin uloží kopii pravidel, vytvoří koncept v měně šablony a první výkaz doplní o cenové ujednání a období `YYYY-MM`. Změny výběru platí pouze pro nové vazby; již uložené ujednání a ruční změny v MyÚčtu se zachovají. Nedostupná vybraná šablona způsobí chybu, nikoli založení bez šablony.
+
+**Přenos paušálu a pásem do položek faktury potvrďte v MyÚčtu.** Plugin synchronizuje časy, ale nevolá automatický přenos částek. Po změně časů může být potřeba přenos v MyÚčtu zopakovat před vystavením.
+
+Při aktualizaci spusťte migraci pluginu a restartujte Redmine:
+
+```sh
+bundle exec rake redmine:plugins:migrate NAME=redmine_myucto RAILS_ENV=production
+```
+
+Migrace doplní volitelná pole; stávající projekty a měsíční vazby zůstanou bez šablony.

@@ -77,3 +77,8 @@ cs:
   text_myucto_queue_existing: 'Pouze administrátor: zadejte ID časového záznamu z tohoto projektu. Zůstane zachované datum, uživatel i historie; přenos respektuje seznam povolených uživatelů. Již zařazený záznam se nepřidá znovu.'
   notice_myucto_existing_queued: 'Časový záznam %{id} byl zařazen do fronty synchronizace.'
   notice_myucto_existing_tracked: 'Časový záznam %{id} již je propojený nebo ve frontě. Jeho stav najdete v přehledu synchronizace.'
+
+  label_myucto_billing_template: Šablona účtování výkazu
+  label_myucto_no_template: Bez šablony
+  error_myucto_template_unavailable: Šablonu účtování nelze načíst nebo není dostupná pro dodavatele.
+  text_myucto_billing_template: Platí pouze pro nové měsíční koncepty. Přenos částek do položek faktury potvrďte v MyÚčtu.

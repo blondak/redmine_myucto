@@ -28,6 +28,8 @@ require_relative '../../db/migrate/001_create_myucto_sync_tables'
 CreateMyuctoSyncTables.new.migrate(:up)
 require_relative '../../db/migrate/002_add_myucto_allowed_users'
 AddMyuctoAllowedUsers.new.migrate(:up)
+require_relative '../../db/migrate/003_add_myucto_billing_templates'
+AddMyuctoBillingTemplates.new.migrate(:up)
 %w[project_setting invoice_binding time_link sync_event].each do |name|
   require_relative "../../app/models/myucto_#{name}"
 end
@@ -57,7 +59,7 @@ class WorkerApi
   def create_invoice(**attributes)
     creates << attributes
     id = creates.size + 100
-    invoices[id] = { 'id' => id, 'status' => 'draft', 'items' => [] }
+    invoices[id] = { 'id' => id, 'status' => 'draft', 'items' => [], 'currency' => attributes.fetch(:currency, 'CZK') }
     raise create_failure if create_failure
     copy(invoices[id])
   end
@@ -73,7 +75,7 @@ class WorkerApi
   def save_work_report(id, report)
     save_failure&.call(id, report)
     writes << [id, copy(report)]
-    reports[id] = copy(report)
+    reports[id] = (reports[id] || {}).merge(copy(report))
     reports[id]['items'].each_with_index do |row, index|
       row['id'] = index + 500
       row['rate'] = row['rate'].to_f

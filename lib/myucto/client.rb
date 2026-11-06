@@ -83,11 +83,20 @@ module Myucto
       result.nil? ? nil : object_response(result)
     end
 
-    def create_invoice(client_id:, period:, project_name:)
+    def billing_templates
+      rows = request(:get, 'work-report-billing-templates')
+      unless rows.is_a?(Array) && rows.all? { |row| row.is_a?(Hash) && row['id'].to_s.match?(/\A[1-9]\d*\z/) && row['currency'].to_s.match?(/\A[A-Z]{3}\z/) && row['bands'].is_a?(Array) }
+        raise Unavailable, 'MyUcto returned an invalid billing template list.'
+      end
+      rows
+    end
+
+    def create_invoice(client_id:, period:, project_name:, currency: nil)
       payload = {
         client_id: positive_id(client_id), invoice_type: 'invoice', items: [],
         note_above_items: "Redmine: #{project_name} / #{period}"
       }
+      payload[:currency] = currency if currency
       result = request(:post, 'invoices', body: payload)
       unless result.is_a?(Hash) && result['id'].to_s.match?(/\A[1-9]\d*\z/)
         raise UncertainCreate, 'MyUcto may have created the draft but returned no usable invoice ID. Check MyUcto before retrying.'

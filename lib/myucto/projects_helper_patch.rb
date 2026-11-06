@@ -10,6 +10,20 @@ module Myucto
       tabs
     end
 
+    def myucto_template_options
+      return [] unless @project.module_enabled?(:myucto) && User.current.allowed_to?(:manage_myucto, @project)
+
+      templates = Myucto::Client.new.billing_templates
+      templates.map { |row| ["#{row['name']} · #{row['currency']} (ID #{row['id']})", row['id']] }.tap do |options|
+        id = @myucto_setting.billing_template_id
+        options << ["ID #{id}", id] if id && options.none? { |option| option[1].to_s == id.to_s }
+      end
+    rescue Myucto::Error
+      @myucto_templates_error = l(:error_myucto_template_unavailable)
+      id = @myucto_setting.billing_template_id
+      id ? [["ID #{id}", id]] : []
+    end
+
     def myucto_user_options
       users = @project.users.to_a
       selected = @myucto_setting.allowed_user_ids

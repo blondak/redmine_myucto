@@ -80,7 +80,8 @@ module Myucto
             prior = source&.id == target.id && link.state != 'removed' ? link.synced_payload_data : nil
             synced = @synchronizer.reconcile(invoice_id: target.invoice_id, time_entry_id: event.time_entry_id,
                                              desired: row, previous: prior,
-                                             title: "#{data.fetch('project_name')} — #{target.period}")
+                                             title: "#{data.fetch('project_name')} — #{target.period}",
+                                             billing_defaults: target.billing_defaults)
             link.update!(invoice_binding_id: target.id, synced_payload: JSON.generate(synced), state: 'synced')
           else
             link.update!(invoice_binding_id: nil, synced_payload: nil, state: 'deleted')
@@ -106,9 +107,17 @@ module Myucto
       raise Conflict, 'Target project has no enabled MyÚčto integration' unless authorized
       client_id = data['client_id'] || setting&.client_id
       raise Conflict, 'Target project has no MyÚčto customer' unless client_id
+      template = if setting&.billing_template_id
+                   @client.billing_templates.find { |row| row['id'].to_s == setting.billing_template_id.to_s } ||
+                     raise(Conflict, 'Selected MyÚčto billing template is unavailable')
+                 end
       binding = begin
         MyuctoInvoiceBinding.create_or_find_by!(project_id: project_id, period: period) do |candidate|
           candidate.client_id = client_id
+          if template
+            candidate.billing_template_id = template.fetch('id')
+            candidate.billing_snapshot_json = JSON.generate(template.slice('name', 'currency', 'fixed_fee', 'included_hours', 'fixed_description', 'bands'))
+          end
           candidate.connection_key = Myucto.connection_key
         end
       rescue ActiveRecord::RecordInvalid => e
@@ -139,8 +148,11 @@ module Myucto
         return unless creation_required?(binding)
         raise Unavailable, 'Invoice creation state changed. Try again later.'
       end
+      binding.reload # update_all bypassed dirty tracking; explicit rejection must restore pending.
       begin
-        invoice = @client.create_invoice(client_id: binding.client_id, period: binding.period,
+        options = {}
+        options[:currency] = binding.billing_defaults.fetch('billing_snapshot').fetch('currency') if binding.billing_template_id
+        invoice = @client.create_invoice(**options, client_id: binding.client_id, period: binding.period,
                                          project_name: data.fetch('project_name'))
         binding.update!(invoice_id: invoice.fetch('id'), state: 'ready', error: nil)
       rescue UncertainCreate => e

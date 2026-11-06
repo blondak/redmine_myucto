@@ -30,6 +30,109 @@ class WorkerIntegrationTest < Minitest::Test
   end
 
 
+  def select_template
+    @setting.update!(billing_template_id: 12)
+    @template = { 'id' => 12, 'name' => 'Support', 'currency' => 'EUR',
+                  'fixed_fee' => 100, 'included_hours' => 2, 'fixed_description' => '{obdobi}',
+                  'bands' => [{ 'up_to_hours' => nil, 'rate' => 50, 'description' => 'Work' }] }
+    template = @template
+    @api.define_singleton_method(:billing_templates) { [template] }
+  end
+
+  def test_template_applied_to_new_report_and_existing_agreement_preserved
+    select_template
+    event = enqueue
+    @worker.run
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_equal 'EUR', @api.creates.first[:currency]
+    report = @api.reports.fetch(binding.invoice_id)
+    assert_equal 12, report['billing_template_id']
+    assert_equal '2026-10', report['billing_period']
+    assert_equal 100, report['billing_snapshot']['fixed_fee']
+    report['billing_snapshot']['fixed_fee'] = 999
+    @setting.update!(billing_template_id: nil)
+    update = enqueue(1, hours: 3)
+    @worker.run
+    assert_equal 'done', update.reload.state, update.last_error
+    assert_equal 999, @api.reports.fetch(binding.invoice_id)['billing_snapshot']['fixed_fee']
+    refute @api.writes.last[1].key?('billing_snapshot')
+    next_month = enqueue(2, spent_on: '2026-11-02')
+    @worker.run
+    assert_equal 'done', next_month.reload.state
+    refute @api.reports.fetch(binding('2026-11').invoice_id).key?('billing_template_id')
+  end
+
+  def test_retry_uses_persisted_template_after_explicit_create_failure
+    select_template
+    @api.create_failure = Myucto::Unavailable.new('rejected')
+    event = enqueue
+    @worker.run
+    assert_equal 'pending', binding.state
+    @template['fixed_fee'] = 500
+    @setting.update!(billing_template_id: nil)
+    @api.create_failure = nil
+    ready_again(event)
+    @worker.run
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_equal 100, @api.reports.fetch(binding.invoice_id)['billing_snapshot']['fixed_fee']
+    assert_equal 'EUR', @api.creates.last[:currency]
+  end
+
+  def test_removing_last_time_preserves_billing_agreement
+    select_template
+    enqueue
+    @worker.run
+    event = enqueue(1, deleted: true)
+    @worker.run
+    assert_equal 'done', event.reload.state, event.last_error
+    report = @api.reports.fetch(binding.invoice_id)
+    assert_empty report['items']
+    assert_equal 12, report['billing_template_id']
+    assert_equal 100, report['billing_snapshot']['fixed_fee']
+    assert_equal 1, @api.creates.size
+  end
+
+  def test_existing_month_never_receives_new_project_template
+    enqueue
+    @worker.run
+    select_template
+    event = enqueue(2)
+    @worker.run
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_nil binding.billing_template_id
+    refute @api.reports.fetch(binding.invoice_id).key?('billing_snapshot')
+  end
+
+  def test_missing_template_does_not_create_invoice
+    @setting.update!(billing_template_id: 12)
+    @api.define_singleton_method(:billing_templates) { [] }
+    event = enqueue
+    @worker.run
+    assert_equal 'conflict', event.reload.state
+    assert_empty @api.creates
+    assert_equal 0, MyuctoInvoiceBinding.count
+  end
+
+  def test_lost_first_report_response_does_not_replace_template_on_retry
+    select_template
+    event = enqueue
+    fired = false
+    @api.save_failure = lambda do |id, report|
+      unless fired
+        fired = true
+        @api.reports[id] = @api.copy(report)
+        raise Myucto::Unavailable, 'lost response'
+      end
+    end
+    @worker.run
+    @api.reports.fetch(binding.invoice_id)['billing_snapshot']['fixed_fee'] = 800
+    ready_again(event)
+    @worker.run
+    assert_equal 'done', event.reload.state, event.last_error
+    assert_equal 1, @api.creates.size
+    assert_equal 800, @api.reports.fetch(binding.invoice_id)['billing_snapshot']['fixed_fee']
+  end
+
   def test_move_preserves_remote_rate_across_failed_target_write
     enqueue
     @worker.run

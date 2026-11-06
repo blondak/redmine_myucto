@@ -33,7 +33,7 @@ MyuctoProjectSetting.create!(project: project, client_id: 7, allowed_user_ids: [
 view = settings_view.call
 view.instance_variable_set(:@clients, [{ 'id' => 7, 'company_name' => 'Synthetic client', 'ic' => '12345678' }])
 html = view.render(partial: 'myucto_projects/settings')
-%w[myucto_project_setting[client_id] myucto_project_setting[allowed_user_ids][]].each do |field|
+%w[myucto_project_setting[client_id] myucto_project_setting[allowed_user_ids][] myucto_project_setting[billing_template_id]].each do |field|
   raise "Missing form field #{field}" unless html.include?(field)
 end
 raise 'Customer label missing' unless html.include?('Synthetic client')

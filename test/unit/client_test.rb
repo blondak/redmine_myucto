@@ -47,6 +47,23 @@ class MyuctoClientTest < Minitest::Test
   end
 
 
+  def test_billing_templates_and_currency_are_supplier_scoped
+    template = { 'id' => 12, 'name' => 'Support', 'currency' => 'EUR', 'bands' => [] }
+    with_transport(response([template]), response({ 'id' => 50 })) do |client, transport|
+      assert_equal [template], client.billing_templates
+      assert_equal '/api/v1/work-report-billing-templates', transport.requests.first.path
+      assert_equal '7', transport.requests.first['X-Supplier-Id']
+      client.create_invoice(client_id: 8, period: '2026-10', project_name: 'Example', currency: 'EUR')
+      assert_equal 'EUR', JSON.parse(transport.requests.last.body)['currency']
+    end
+  end
+
+  def test_invalid_billing_template_response_is_rejected
+    [nil, {}, [{ 'id' => 12 }]].each do |body|
+      with_transport(response(body)) { |client, _| assert_raises(Myucto::Unavailable) { client.billing_templates } }
+    end
+  end
+
   def test_create_redirects_and_http_timeout_are_ambiguous
     [302, 307, 408].each do |status|
       with_transport(response({}, status)) do |client, transport|

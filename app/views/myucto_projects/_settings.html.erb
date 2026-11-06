@@ -12,6 +12,13 @@
                         data: { placeholder: l(:text_myucto_search_company),
                                 invalid: l(:error_myucto_select_company) },
                         disabled: api_error.present? } %></p>
+      <% templates = myucto_template_options %>
+      <% if @myucto_templates_error %><p class="warning"><%= @myucto_templates_error %></p><% end %>
+      <p><%= f.select :billing_template_id, templates,
+                      { include_blank: l(:label_myucto_no_template), label: :label_myucto_billing_template },
+                      { class: 'myucto-company-select', disabled: @myucto_templates_error.present?,
+                        data: { placeholder: l(:label_myucto_no_template), invalid: l(:error_myucto_template_unavailable) } } %></p>
+      <p class="info"><%= l(:text_myucto_billing_template) %></p>
       <p><%= f.select :allowed_user_ids, myucto_user_options,
                       { label: :label_myucto_allowed_users }, { multiple: true, size: 8 } %></p>
       <p class="info"><%= l(:text_myucto_allowed_users) %></p>

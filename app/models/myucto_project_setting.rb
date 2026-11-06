@@ -7,6 +7,7 @@ class MyuctoProjectSetting < ActiveRecord::Base
 
   validates :project_id, presence: true, uniqueness: true
   validates :client_id, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+  validates :billing_template_id, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :client_id, presence: true, if: :enabled?
 
   def allowed_user_ids

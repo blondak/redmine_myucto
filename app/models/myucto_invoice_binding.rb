@@ -8,6 +8,13 @@ class MyuctoInvoiceBinding < ActiveRecord::Base
   validates :state, presence: true
   validates :invoice_id, uniqueness: true, allow_nil: true
 
+  def billing_defaults
+    return {} unless billing_snapshot_json.present?
+
+    { 'billing_template_id' => billing_template_id,
+      'billing_snapshot' => JSON.parse(billing_snapshot_json), 'billing_period' => period }
+  end
+
   def automatic_retry_safe?
     !%w[conflict uncertain creating].include?(state)
   end

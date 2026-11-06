@@ -18,14 +18,18 @@ module Myucto
     # desired contains description (without marker), work_date, hours and rate.
     # previous is the row returned by the last successful reconciliation.
     # A current remote rate always wins over desired/previous rates.
-    def reconcile(invoice_id:, time_entry_id:, desired:, previous: nil, title: 'Výkaz práce')
+    def reconcile(invoice_id:, time_entry_id:, desired:, previous: nil, title: 'Výkaz práce', billing_defaults: {})
       id = Integer(time_entry_id)
       raise ArgumentError, 'time_entry_id must be positive' unless id.positive?
 
       marker = "[TE##{id}]"
       invoice = editable_invoice!(invoice_id)
       report = @client.work_report(invoice_id)
-      report ||= { 'title' => title, 'project_id' => invoice['project_id'], 'items' => [] }
+      new_report = report.nil?
+      if new_report && billing_defaults['billing_snapshot'] && invoice['currency'] != billing_defaults['billing_snapshot']['currency']
+        raise Conflict, 'Invoice currency differs from the selected billing template'
+      end
+      report ||= { 'title' => title, 'project_id' => invoice['project_id'], 'items' => [] }.merge(billing_defaults)
       validate_report!(report)
       rows = report.fetch('items')
       matching = rows.each_index.select { |index| rows[index]['description'].to_s.end_with?(marker) }
@@ -59,10 +63,15 @@ module Myucto
       end
 
       editable_invoice!(invoice_id)
-      @client.save_work_report(invoice_id, payload)
+      outgoing = deep_copy(payload)
+      %w[billing_template_id billing_snapshot billing_period].each { |key| outgoing.delete(key) } unless new_report
+      @client.save_work_report(invoice_id, outgoing)
       editable_invoice!(invoice_id)
       actual = @client.work_report(invoice_id)
       validate_report!(actual)
+      if new_report && billing_defaults.any? && billing_defaults.any? { |key, value| actual[key] != value }
+        raise Conflict, 'MyÚčto did not retain the selected billing agreement'
+      end
       unless comparable_report(actual) == comparable_report(payload)
         raise Conflict, "Work report changed while synchronizing #{marker}"
       end

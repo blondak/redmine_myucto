@@ -11,7 +11,7 @@ class MyuctoProjectsController < ApplicationController
 
   def update
     @myucto_setting = MyuctoProjectSetting.find_or_initialize_by(project_id: @project.id)
-    permitted = params.require(:myucto_project_setting).permit(:enabled, :client_id, allowed_user_ids: [])
+    permitted = params.require(:myucto_project_setting).permit(:enabled, :client_id, :billing_template_id, allowed_user_ids: [])
     previous_users = @myucto_setting.allowed_user_ids
     @myucto_setting.assign_attributes(permitted)
     allowed = @project.users.pluck(:id) | previous_users
@@ -25,6 +25,16 @@ class MyuctoProjectsController < ApplicationController
       load_clients
       unless @clients.any? { |client| client_value(client, 'id').to_s == candidate.to_s }
         @myucto_setting.errors.add(:client_id, l(:error_myucto_client_unavailable))
+        return render :edit, status: :unprocessable_entity
+      end
+    end
+    if permitted.key?(:billing_template_id) && permitted[:billing_template_id].present?
+      begin
+        templates = Myucto::Client.new.billing_templates
+        raise Myucto::Conflict unless templates.any? { |row| row['id'].to_s == permitted[:billing_template_id].to_s }
+      rescue Myucto::Error
+        @myucto_setting.errors.add(:billing_template_id, l(:error_myucto_template_unavailable))
+        load_clients
         return render :edit, status: :unprocessable_entity
       end
     end

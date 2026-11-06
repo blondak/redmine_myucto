@@ -77,3 +77,8 @@ en:
   text_myucto_queue_existing: 'Administrator only: enter a time entry ID from this project. Date, owner and history remain intact; the allowed-users list applies. Already tracked entries are not queued again.'
   notice_myucto_existing_queued: 'Time entry %{id} was queued for synchronization.'
   notice_myucto_existing_tracked: 'Time entry %{id} is already linked or queued. Check its status in the synchronization overview.'
+
+  label_myucto_billing_template: Work report billing template
+  label_myucto_no_template: No template
+  error_myucto_template_unavailable: Billing template cannot be loaded or is unavailable for this supplier.
+  text_myucto_billing_template: Applies only to new monthly drafts. Confirm transfer of amounts to invoice items in MyÚčto.
